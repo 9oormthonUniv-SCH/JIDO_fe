@@ -1,6 +1,6 @@
 //나의로드맵페이지
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopHeader from "../components/TopHeader";
 

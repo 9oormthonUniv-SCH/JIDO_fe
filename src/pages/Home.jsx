@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import  { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopHeader from "../components/TopHeader";
-import SideNav from "../components/SideNav";
 import { useNavigate } from "react-router-dom";
 import PI from "../assets/PI.png";  // 이미지 import 추가
 

@@ -1,4 +1,4 @@
-import React from "react";
+
 import styled from "styled-components";
 import Home from "./Home";
 import welcomeImage from "../assets/Pi.png";
