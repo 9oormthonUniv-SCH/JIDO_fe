@@ -1,0 +1,150 @@
+import React from "react";
+import styled from "styled-components";
+import { useNavigate } from "react-router-dom";
+
+const Container = styled.div`
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  margin-bottom:30px;
+
+`;
+
+const Logo = styled.h1`
+  font-size:32px;
+  font-weight:bold;
+  color:black;
+  cursor:pointer;
+  margin-bottom:40px;
+  margin-top:90px;
+`;
+
+const Title = styled.h2`
+  font-size:24px;
+  font-weight:bold;
+  color:#2e5c4d;
+  margin-bottom:30px;
+`;
+
+const LoginContainer = styled.div`
+ width:400px;
+  display:flex;
+  flex-direction:column;
+
+`;
+
+const Label = styled.label`
+  font-weight:bold;
+  margin-bottom:6px;
+  font-size:14px;
+  color:black;
+`;
+
+//닉네임 중복확인 전체 컨테이너
+const NicknameContainer=styled.div`
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ gap:10px;
+
+
+`;
+//닉네임창
+const NicknameInput=styled.input`
+  border-radius:8px;
+  border:1px solid #c3d4ce;
+  margin-bottom:20px;
+  font-size:14px;
+  outline:none;
+ height:38px;
+  &:focus{border: 2px solid #2e5c4d;}
+  flex:1;
+`;
+//중복확인버튼
+const CheckButton=styled.div`
+   border-radius:8px;
+  border:1px solid #c3d4ce;
+  margin-bottom: 20px;
+  font-size:14px;
+  outline:none;
+  width:60px;
+  background:#fafdfb;
+  color:#2e5c4d;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  cursor:pointer;
+  height:39px;
+  font-weight:bold;
+  border:2px solid #2e5c4d;
+  &:hover{background-color:#2e5c4d; color:white;}
+
+  
+
+`;
+
+
+
+const Input = styled.input`
+  border-radius:8px;
+  border:1px solid #c3d4ce;
+  margin-bottom:20px;
+  font-size:14px;
+  outline:none;
+  height:38px;
+  &:focus{border: 2px solid #2e5c4d;}
+`;
+
+const Button = styled.button`
+  width:100%;
+  background-color:#2e5c4d;
+  color:white;
+  font-weight:bold;
+  border:none;
+  border-radius:20px;
+  height:45px;
+  font-size:16px;
+  cursor:pointer;
+&:hover{background-color: #24493d;}
+`;
+
+function SignUp() {
+  const navigate = useNavigate();
+
+  return (
+    <Container>
+      <Logo onClick={() => navigate("/")}>JIDO</Logo>
+      <Title>SIGN UP</Title>
+      <LoginContainer>
+        <Label>닉네임</Label>
+        <NicknameContainer>
+        <NicknameInput placeholder="닉네임을 입력하세요" required />
+       <CheckButton>중복 확인</CheckButton>
+       </NicknameContainer>
+
+
+        <Label>학과</Label>
+        <Input placeholder="학과를 입력하세요" required />
+
+        <Label>생년월일</Label>
+        <Input type="date" placeholder="생년월일을 선택하세요" required />
+
+        <Label>이메일</Label>
+        <Input type="email" placeholder="이메일을 입력하세요" required />
+
+        <Label>아이디</Label>
+        <Input placeholder="아이디를 입력하세요" required />
+
+        <Label>비밀번호</Label>
+        <Input type="password" placeholder="비밀번호를 입력하세요" required />
+
+        <Button type="button" onClick={() => navigate("/signup2")}>
+          다음
+        </Button>
+      </LoginContainer>
+    </Container>
+  );
+}
+
+export default SignUp;
