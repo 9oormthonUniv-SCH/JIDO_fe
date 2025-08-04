@@ -1,6 +1,7 @@
 
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 const Container = styled.div`
   display:flex;
@@ -112,6 +113,13 @@ const Button = styled.button`
 function SignUp() {
   const navigate = useNavigate();
 
+  const[nickname,setNickname]=useState("");
+  const [major, setMajor] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
+  const [password, setPassword] = useState("");
+
   return (
     <Container>
       <Logo onClick={() => navigate("/")}>JIDO</Logo>
@@ -119,29 +127,45 @@ function SignUp() {
       <LoginContainer>
         <Label>닉네임</Label>
         <NicknameContainer>
-        <NicknameInput placeholder="닉네임을 입력하세요" required />
+        <NicknameInput placeholder="닉네임을 입력하세요" onChange={(e)=>setNickname((e.target.value))} />
        <CheckButton>중복 확인</CheckButton>
        </NicknameContainer>
 
 
         <Label>학과</Label>
-        <Input placeholder="학과를 입력하세요" required />
+        <Input placeholder="학과를 입력하세요" onChange={(e)=>setMajor(e.target.value)} />
 
         <Label>생년월일</Label>
-        <Input type="date" placeholder="생년월일을 선택하세요" required />
+        <Input type="date" placeholder="생년월일을 선택하세요" onChange={(e)=> setBirthDate(e.target.value)} />
 
         <Label>이메일</Label>
-        <Input type="email" placeholder="이메일을 입력하세요" required />
+        <Input type="email" placeholder="이메일을 입력하세요" onChange={(e)=> setEmail(e.target.value)} />
 
         <Label>아이디</Label>
-        <Input placeholder="아이디를 입력하세요" required />
+        <Input placeholder="아이디를 입력하세요" onChange={(e)=>setUserId(e.target.value)} />
 
         <Label>비밀번호</Label>
-        <Input type="password" placeholder="비밀번호를 입력하세요" required />
+        <Input type="password" placeholder="비밀번호를 입력하세요" onChange={(e)=> setPassword(e.target.value)} />
+<Button
+  type="button"
+  onClick={() => {
 
-        <Button type="button" onClick={() => navigate("/signup2")}>
-          다음
-        </Button>
+    localStorage.setItem("nickname", nickname);  
+    localStorage.setItem("major", major);
+    localStorage.setItem("email", email);
+    localStorage.setItem("userId", userId);
+    localStorage.setItem("password", password);
+
+    // 가입일도 저장
+    const today = new Date().toLocaleDateString();
+    localStorage.setItem("signupDate", today);
+
+    navigate("/signup2");
+  }}
+>
+  다음
+</Button>
+
       </LoginContainer>
     </Container>
   );

@@ -1,6 +1,6 @@
-
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 const Container = styled.div`
   display:flex;
@@ -8,7 +8,6 @@ const Container = styled.div`
   align-items:center;
   justify-content:center;
   background-color:#fafdfb;
-
 `;
 
 const Logo = styled.h1`
@@ -27,28 +26,30 @@ const Title = styled.h2`
   margin-bottom:30px;
 `;
 
-const SignupCotainer = styled.div`
-  display:flex;
-  flex-direction:column;
-  width:100%;
-  max-width:400px;
+const LoginContainer = styled.form`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 400px;
 `;
+
 
 const Label=styled.label`
   font-weight:bold;
   margin-bottom:6px;
   font-size:14px;
   color:black;
+  display: block;  
 `;
 
 const Input = styled.input`
- height:38px;
+  height:38px;
   border-radius:8px;
   border:1px solid #c3d4ce;
   margin-bottom:20px;
   font-size:14px;
   outline:none;
-&:focus{border: 2px solid #2e5c4d;}
+  &:focus{border: 2px solid #2e5c4d;}
 `;
 
 const Button = styled.button`
@@ -64,10 +65,9 @@ const Button = styled.button`
   &:hover{background-color:#24493d;}
 `;
 
-//회원가입유토 컨테이너
 const SignupMentCon = styled.div`
- display:flex;
- align-items:center;
+  display:flex;
+  align-items:center;
   margin-top:20px;
   font-size:14px;
   color: #616564ff;
@@ -78,30 +78,41 @@ const SignupLink = styled.p`
   font-weight:bold;
   margin-left:4px;
   cursor: pointer;
-&:hover{text-decoration:underline;}
+  &:hover{text-decoration:underline;}
 `;
 
 function Login() {
   const navigate = useNavigate();
+  const [userId, setUserId] = useState("");
+  const [password, setPassword] = useState("");
 
-  const handleSubmit = () => {
-    localStorage.setItem("nickname", "테스트유저");
-    navigate("/");
+  const handleSubmit = (e) => { e.preventDefault()
+    const storedUserId = localStorage.getItem("userId");
+    const storedPassword = localStorage.getItem("password");
+   
+     if (userId === storedUserId && password === storedPassword) {
+        navigate("/"); } 
+        else {
+        alert("아이디 또는 비밀번호가 잘못되었습니다.");}
   };
 
   return (
     <Container>
       <Logo onClick={() => navigate("/")}>JIDO</Logo>
       <Title>LOGIN</Title>
-      <SignupCotainer onSubmit={handleSubmit}>
-        <Label>이메일</Label>
-        <Input type="email" placeholder="이메일을 입력하세요" required />
 
-        <Label>비밀번호</Label>
-        <Input type="password" placeholder="비밀번호를 입력하세요" required />
+      <LoginContainer onSubmit={handleSubmit}>
+        <Label>아이디</Label>
+       <Input type="text"  placeholder="아이디를 입력하세요" value={userId}
+               onChange={(e) => setUserId(e.target.value)}/>
 
-        <Button type="submit" onClick={handleSubmit}>로그인</Button>
-      </SignupCotainer>
+       <Label>비밀번호</Label>
+       <Input type="password" placeholder="비밀번호를 입력하세요" value={password}
+              onChange={(e) => setPassword(e.target.value)}/>
+
+        <Button type="submit">로그인</Button>
+      </LoginContainer>
+
       <SignupMentCon>
         아직 회원이 아니신가요?
         <SignupLink onClick={() => navigate("/signup")}>회원가입</SignupLink>

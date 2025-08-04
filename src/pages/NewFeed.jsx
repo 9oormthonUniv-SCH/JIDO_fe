@@ -2,34 +2,17 @@ import  { useEffect, useState } from "react";
 import styled from "styled-components";
 import Logo from "../components/Logo";
 import { useNavigate } from "react-router-dom";
-
-const categories = { "개발·기술": {"개발·프로그래밍": ["백엔드","프론트엔드","알고리즘·자료구조",
-                                                    "데이터베이스","모바일 앱","프로그래밍 언어",
-                                                    "데브옵스·인프라","소프트웨어 테스트","개발 도구",
-                                                    "웹 퍼블리싱","데스크톱 앱 개발","VR/AR","개발·프로그래밍 자격증",],
-    "AI 개발": ["AI에이전트 개발", "딥러닝·머신러닝", "컴퓨터 비전", "자연어 처리"],
-    "AI 활용": ["AI 업무 활용", "AI 크리에이티브"],
-    "게임 개발": ["게임 프로그래밍", "게임 기획", "게임 아트·그래픽"],
-    "데이터 사이언스": ["데이터 분석", "데이터 엔지니어링", "데이터 사이언스 자격증"],
-    "보안·네트워크": ["보안","네트워크","시스템·운영체제","클라우드","블록체인","보안·네트워크 자격증",],
-    "하드웨어": ["컴퓨터 구조", "임베디드·IoT", "반도체", "로봇공학", "모빌리티", "하드웨어 자격증"],},
+import { FaTrash } from "react-icons/fa";
+import categories from "../data/categories";  
 
 
-  "디자인·콘텐츠 제작": {"디자인·아트": ["CAD·3D 모델링", "UI/UX", "그래픽 디자인", "디자인 자격증"],
-                        "콘텐츠 제작": ["웹툰·이모티콘", "사진·영상", "사운드"],},
 
-  "비즈니스·실무": {"기획·경영·마케팅": ["기획·PM·PO", "마케팅", "경영·전략", "기획·경영·마케팅 자격증"],
-    "업무 생산성": ["업무 자동화", "오피스", "생산성 도구"],},
 
-  "커리어·교육": {"커리어·자기계발": ["취업·이직", "창업·부업", "개인 브랜딩", "외국어", "금융·재테크", "교양·예절"],
-                "대학교육": ["수학", "공학", "상경", "자연과학"],},
-};
 const AllContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
   background-color: #fafdfb;
-  min-height: 100vh;
   padding: 40px 20px;
 `;
 
@@ -83,12 +66,46 @@ const CheckboxContainer = styled.div`
   display: flex;
   gap: 20px;
   margin-top: 10px;
+  // align-items:center;
+  justify-content:center;
+  margin-left:60px;
 `;
 
 const CheckColumn = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+`;
+
+const SelectMenuContainter =styled.div`
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-top:30px;
+    margin-left:30px;
+
+
+`;
+
+const SelectMenuBox = styled.div`
+   width:550px;
+   height:50px;
+   background-color: #f2f5f4;
+   display:flex;
+   align-items:center;
+   justify-content:center;
+   border-radius:10px;
+   border:2px solid #2e5c4d;
+
+
+
+`;
+
+const SelectOption =styled.p`
+   font-size:15px;
+   color: #2e5c4d;
+
+
 `;
 
 const NewLevelButton = styled.button`
@@ -119,7 +136,7 @@ const SaveButton = styled.button`
   &:hover {
     background: #24493d;
   }
-    width:50%;
+  width:50%;
 `;
 
 const RoadmapContainer = styled.div`
@@ -152,11 +169,10 @@ const DashedBox = styled.div`
   justify-content: center;
   align-items: center;
   border: 2px dashed #2e5c4d;
-  width: 150px;
-  height: 130px;
+  width: 160px;
+  height: 160px;
   border-radius: 10px;
   cursor: pointer;
-  min-width: 150px;
   background: #f9fdfb;
 `;
 
@@ -166,12 +182,13 @@ const PlusButton = styled.div`
 `;
 
 const RoadmapBox = styled.div`
+  position: relative; /* 삭제 버튼 위치를 절대값으로 두기 위해 추가 */
   border: 1px solid #c3d4ce;
   background: white;
   padding: 12px;
   border-radius: 12px;
-  width: 220px;
-  min-width: 220px;
+  width: 250px;
+  padding: 30px;
 `;
 
 const TaskTitleInput = styled.input`
@@ -215,22 +232,55 @@ const AddButton = styled.button`
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  
 `;
 
-const DoneButton = styled.button`
-  margin-top: 10px;
-  padding: 8px;
-  border-radius: 10px;
-  font-size: 12px;
+const DeleteButton = styled.button`
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
   font-weight: bold;
+  background: transparent;
   border: none;
-  display: flex;
-  margin-left: auto;
-  background: #2e5c4d;
-  color: white;
   cursor: pointer;
+  color: #2e5c4d;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+
+  &:hover {
+    color: red;
+  }
 `;
+
+const ToggleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left:auto;
+  margin-right:370px;
+`;
+
+const Switch = styled.div`
+  width: 50px;
+  height: 26px;
+  background: ${(props) => (props.open ? "#2e5c4d" : "#ccc")};
+  border-radius: 50px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
+`;
+
+const Knob = styled.div`
+  width: 22px;
+  height: 22px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: ${(props) => (props.open ? "26px" : "2px")};
+  transition: left 0.3s;
+`;
+
 
 function NewFeed() {
   const navigate = useNavigate();
@@ -241,44 +291,132 @@ function NewFeed() {
 
   const [firstSelect, setFirstSelect] = useState(null);
   const [secondSelect, setSecondSelect] = useState(null);
-  const [thirdSelect, setThirdSelect] = useState([]);
+  const [thirdSelect, setThirdSelect] = useState(null);
+
+  const[openState,setOpenState]=useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("nickname");
     if (stored) setNickname(stored);
   }, []);
 
-  const addLevel = () => {
-    setLevels((prev) => [...prev, { steps: [] }]);
-  };
+  const addLevel = () => {setLevels((prev)=>[...prev,{steps:[]}]);};
+
+
+
 
   const addRoadmapBox = (levelIndex) => {
-    setLevels((prev) => {
-      const updated = [...prev];
-      updated[levelIndex].steps.push({ title: "", checklist: [] });
-      return updated;
-    });
+    setLevels((prev) =>
+      prev.map((level, idx) =>
+        idx === levelIndex
+          ? {
+              ...level,
+              steps: [...level.steps, { title: "", checklist: [""] }],
+            }
+          : level
+      )
+    );
+  };
+
+  const handleChecklistChange = (levelIndex, stepIndex, checklistIndex, value) => {
+    setLevels((prev) =>
+      prev.map((level, lIdx) =>
+        lIdx === levelIndex
+          ? {
+              ...level,
+              steps: level.steps.map((step, sIdx) =>
+                sIdx === stepIndex
+                  ? {
+                      ...step,
+                      checklist: step.checklist.map((item, cIdx) =>
+                        cIdx === checklistIndex ? value : item
+                      ),
+                    }
+                  : step
+              ),
+            }
+          : level
+      )
+    );
   };
 
   const handleAddChecklist = (levelIndex, stepIndex) => {
-    setLevels((prev) => {
-      const updated = [...prev];
-      updated[levelIndex].steps[stepIndex].checklist.push("");
-      return updated;
-    });
+    setLevels((prev) =>
+      prev.map((level, lIdx) =>
+        lIdx === levelIndex
+          ? {
+              ...level,
+              steps: level.steps.map((step, sIdx) =>
+                sIdx === stepIndex
+                  ? { ...step, checklist: [...step.checklist, ""] }
+                  : step
+              ),
+            }
+          : level
+      )
+    );
   };
 
-  const saveRoadmap = () => {
-    const currentStored = JSON.parse(localStorage.getItem("roadmaps")) || [];
-    const newRoadmap = {
-      title,
-      description,
-      author: nickname,
-      levels,
-    };
-    localStorage.setItem("roadmaps", JSON.stringify([...currentStored, newRoadmap]));
-    navigate("/");
+  const handleDeleteChecklist = (levelIndex, stepIndex, checklistIndex) => {
+    setLevels((prev) =>
+      prev.map((level, lIdx) =>
+        lIdx === levelIndex
+          ? {
+              ...level,
+              steps: level.steps.map((step, sIdx) =>
+                sIdx === stepIndex
+                  ? {
+                      ...step,
+                      checklist: step.checklist.filter(
+                        (_, cIdx) => cIdx !== checklistIndex
+                      ),
+                    }
+                  : step
+              ),
+            }
+          : level
+      )
+    );
   };
+
+  const handleDeleteStep = (levelIndex, stepIndex) => {
+    setLevels((prev) =>
+      prev.map((level, lIdx) =>
+        lIdx === levelIndex
+          ? {
+              ...level,
+              steps: level.steps.filter((_, sIdx) => sIdx !== stepIndex),
+            }
+          : level
+      )
+    );
+  };
+
+  const handleOpen = () => setOpenState((prev)=> !prev);
+
+ const saveRoadmap = () => {
+  const currentStored = JSON.parse(localStorage.getItem("roadmaps")) || [];
+
+  // 카테고리 경로 생성 (대분류 > 중분류 > 소분류)
+  const categoryPath = [
+    firstSelect,
+    secondSelect,
+    thirdSelect
+  ]
+    .filter(Boolean) // null, undefined 제거
+    .join(" > ");
+
+  const newRoadmap = { 
+    title, 
+    description, 
+    author: nickname, 
+    levels,
+    category: categoryPath // 카테고리 정보 저장
+  };
+
+  localStorage.setItem("roadmaps", JSON.stringify([...currentStored, newRoadmap]));
+  navigate("/");
+};
 
   return (
     <AllContainer>
@@ -286,26 +424,15 @@ function NewFeed() {
 
       <InputSection>
         <MakeTitle>제목</MakeTitle>
-        <TitleBox
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="제목을 입력하세요"
-        />
+        <TitleBox value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목을 입력하세요" />
 
         <MakeTitle>카테고리 선택</MakeTitle>
         <CheckboxContainer>
           <CheckColumn>
             {Object.keys(categories).map((main) => (
               <label key={main}>
-                <input
-                  type="checkbox"
-                  checked={firstSelect === main}
-                  onChange={() => {
-                    setFirstSelect(main);
-                    setSecondSelect(null);
-                    setThirdSelect([]);
-                  }}
-                />
+                <input type="checkbox" checked={firstSelect === main}
+                    onChange={() => { setFirstSelect(main); setSecondSelect(null); setThirdSelect(null);}}/>
                 {main}
               </label>
             ))}
@@ -315,14 +442,8 @@ function NewFeed() {
             {firstSelect &&
               Object.keys(categories[firstSelect]).map((middle) => (
                 <label key={middle}>
-                  <input
-                    type="checkbox"
-                    checked={secondSelect === middle}
-                    onChange={() => {
-                      setSecondSelect(middle);
-                      setThirdSelect([]);
-                    }}
-                  />
+                  <input type="checkbox" checked={secondSelect === middle} 
+                  onChange={() => {setSecondSelect(middle); setThirdSelect(null);}}/>
                   {middle}
                 </label>
               ))}
@@ -332,29 +453,25 @@ function NewFeed() {
             {secondSelect &&
               categories[firstSelect][secondSelect].map((sub) => (
                 <label key={sub}>
-                  <input
-                    type="checkbox"
-                    checked={thirdSelect.includes(sub)}
-                    onChange={() => {
-                      if (thirdSelect.includes(sub)) {
-                        setThirdSelect(thirdSelect.filter((item) => item !== sub));
-                      } else {
-                        setThirdSelect([...thirdSelect, sub]);
-                      }
-                    }}
-                  />
+                  <input type="checkbox" checked={thirdSelect === sub} onChange={() => { setThirdSelect(sub)}}/>
                   {sub}
                 </label>
               ))}
           </CheckColumn>
         </CheckboxContainer>
 
+        <SelectMenuContainter>
+  <SelectMenuBox>
+    <SelectOption>
+      {firstSelect ? firstSelect : ""}
+      {secondSelect && "> " + secondSelect}
+      {thirdSelect && ` > ${thirdSelect}`}
+    </SelectOption>
+  </SelectMenuBox>
+</SelectMenuContainter>
+
         <MakeTitle>설명</MakeTitle>
-        <TextBox
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="설명을 입력하세요"
-        />
+        <TextBox value={description} onChange={(e) => setDescription(e.target.value)} placeholder="설명을 입력하세요"/>
 
         <NewLevelButton onClick={addLevel}>+ 새로운 단계 추가하기</NewLevelButton>
       </InputSection>
@@ -370,28 +487,57 @@ function NewFeed() {
 
               {level.steps.map((step, sIdx) => (
                 <RoadmapBox key={sIdx}>
+                  <DeleteButton onClick={() => handleDeleteStep(idx, sIdx)}>
+                    <FaTrash />
+                  </DeleteButton>
+
                   <TaskTitleInput
                     placeholder="제목을 입력하세요"
                     value={step.title}
-                    readOnly
+                    onChange={(e) => {
+                      const newLevels = [...levels];
+                      newLevels[idx].steps[sIdx].title = e.target.value;
+                      setLevels(newLevels);
+                    }}
                   />
                   {step.checklist.map((item, cIdx) => (
                     <CheckListContainer key={cIdx}>
                       <input type="checkbox" />
-                      <ChecklistInput value={item} disabled />
+                      <ChecklistInput
+                        value={item}
+                        onChange={(e) =>
+                          handleChecklistChange(idx, sIdx, cIdx, e.target.value)
+                        }
+                        placeholder="체크리스트를 입력하세요"
+                      />
+                      <button
+                        onClick={() =>
+                          handleDeleteChecklist(idx, sIdx, cIdx)
+                        }
+                      >
+                        ✕
+                      </button>
                     </CheckListContainer>
                   ))}
                   <CheckListContainer>
-                    <ChecklistInput placeholder="체크리스트를 입력하세요" disabled />
-                    <AddButton onClick={() => handleAddChecklist(idx, sIdx)}>＋</AddButton>
+                    <AddButton onClick={() => handleAddChecklist(idx, sIdx)}>
+                      ＋
+                    </AddButton>
                   </CheckListContainer>
-                  <DoneButton>완료</DoneButton>
                 </RoadmapBox>
               ))}
             </RoadmapList>
           </LevelBlock>
         ))}
       </RoadmapContainer>
+
+      <ToggleContainer>
+  <span>{openState ? "공개" : "비공개"}</span>
+  <Switch open={openState} onClick={handleOpen}>
+    <Knob open={openState} />
+  </Switch>
+</ToggleContainer>
+
 
       <SaveButton onClick={saveRoadmap}>로드맵 올리기</SaveButton>
     </AllContainer>

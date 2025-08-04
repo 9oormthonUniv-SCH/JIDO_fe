@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 // 스타일 정의
 const LogoText = styled.p`
-  font-size:30px;
+  font-size:40px;
   font-weight:bold;
   color:black;
   margin:0;

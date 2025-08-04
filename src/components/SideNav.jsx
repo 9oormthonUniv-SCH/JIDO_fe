@@ -46,7 +46,7 @@ function SideNav() {
     <Container>
       <div>
         <BigCategory>개발·기술</BigCategory>
-        <SmallCategory onClick={() => navigate("/RoadmapDetail")}>
+        <SmallCategory onClick={() => navigate("/roadmapDetail")}>
           개발·프로그래밍
         </SmallCategory>
         <SmallCategory>AI 개발</SmallCategory>

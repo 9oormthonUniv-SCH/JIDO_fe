@@ -10,6 +10,7 @@ import MyInfo from './pages/MyInfo';
 import RoadmapDetail from './pages/RoadmapDetail';
 import SignUp2 from './pages/SignUp2';
 import MyinfoUpdate from './pages/MyinfoUpdate';
+import NoticePage from './pages/NoticePage'; // 추가
 
 function App() {
   return (
@@ -21,11 +22,16 @@ function App() {
         <Route path="/newfeed" element={<NewFeed/>}/>
         <Route path="/mypage" element={<MyPage/>}/>
         <Route path="/myinfo" element={<MyInfo/>}/>
-        <Route path="/RoadmapDetail" element={<RoadmapDetail/>}/>
-       <Route path="/signup2" element={<SignUp2 />} />
-         <Route path="/infoupdate" element={<MyinfoUpdate />} />
+        
+        {/* 동적 라우트 설정 */}
+        <Route path="/roadmap/:id" element={<RoadmapDetail/>} />
 
-       </Routes>
+        {/* NoticePage 추가 */}
+        <Route path="/noticepage" element={<NoticePage />} />
+        
+        <Route path="/signup2" element={<SignUp2 />} />
+        <Route path="/infoupdate" element={<MyinfoUpdate />} />
+      </Routes>
     </BrowserRouter>
   );
 }

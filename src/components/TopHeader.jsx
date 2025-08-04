@@ -3,51 +3,48 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { FaBell } from 'react-icons/fa';
 import Logo from '../components/Logo';
+import {useState} from 'react';
 
-const HeaderContainer=styled.div`
+
+const HeaderContainer = styled.div`
   display:flex;
   align-items:center;
   justify-content:space-between;
-  height:60px;
+  height:80px;
   padding:12px;
   border-bottom:1px solid #a6aea9ff;
   background-color: #fafdfb;
-
-
-   position: fixed;      /* 화면 위에 고정 */
-  top: 0;               /* 최상단 */
-  left: 0;
-  width: 100%;          /* 가로 전체 차지 */
-  z-index: 1000;        /* 다른 요소보다 위에 오게 */
-
+  position: fixed;   
+  width: 100%;                 
 `;
 
-//왼쪽 메뉴들 전체 컨테이너
-const Menu=styled.div`
-  display: flex;
-  align-items: center;
+//로드맵목록,나의로드맵,로드맵만들기 감싸는 애
+const Menu = styled.div`
+  display:flex;
+  align-items:center;
   gap:20px;
 `;
 
-
-const Option=styled.p`
-  font-size:12px;
+const Option = styled.p`
+  font-size:15px;
   color:black;
   cursor:pointer;
   font-weight:bold;
-  &:hover{font-size: 14px;}
+  &:hover{font-size: 17px;}
 `;
 
-const SearchInput= styled.input`
+const SearchInput = styled.input`
   border-radius:20px;
   background:white;
   width:500px;
-  height:28px;
+  height:30px;
   font-size:12px;
   border:1px solid black;
+  &:focus::placeholder {color: transparent;}
+  padding-left: 12px; 
 `;
 
-//오른쪽 메뉴들(로그인버튼이나 닉네임,알람벨)
+//TopHeader오른쪽 부분
 const LoginMenu= styled.div`
   display:flex;
   align-items:center;
@@ -56,7 +53,7 @@ const LoginMenu= styled.div`
 `;
 
 const UserNickname=styled.button`
-  font-size:12px;
+  font-size:15px;
   margin:0;
   border:none;
   background:none;
@@ -65,11 +62,10 @@ const UserNickname=styled.button`
   &:hover{text-decoration: underline;}
   display:flex;
   margin-left:30px;
-
 `;
 
 const WelcomeText=styled.p`
-  font-size:12px;
+  font-size:15px;
   margin:0;
   display:flex;
   align-items:center;
@@ -88,7 +84,6 @@ const LoginButton=styled.button`
   background-color:#2e5c4d;
   width:80px;
   color:white;
-  
 `;
 
 const NoticeBell = styled.button`
@@ -110,12 +105,23 @@ const NoticeNum = styled.span`
 `;
 
 function TopHeader({ nickname }) {
-  const navigate = useNavigate();
-  const [noticeCount] = React.useState(3);
+  const navigate=useNavigate();
+  const [noticeCount]=useState(3);
+
+  // 로그인 여부 확인 후 페이지 이동 (주석처리)
+  /*
+  const checkLoginAndNavigate = (path) => {
+    if (!nickname) {
+      alert("로그인이 필요합니다!");
+      navigate('/login');
+    } else {
+      navigate(path);
+    }
+  };
+  */
 
   return (
     <HeaderContainer>
-
       <Menu>
         <Logo onClick={() => navigate('/')} />
         <Option onClick={() => navigate('/')}>로드맵 목록</Option>
@@ -124,22 +130,16 @@ function TopHeader({ nickname }) {
         <SearchInput placeholder="🔍 검색" />
       </Menu>
 
-   
       <LoginMenu>
         {nickname ? (
           <WelcomeText>
-            <UserNickname onClick={() => navigate('/myinfo')}>{nickname}</UserNickname>
-            님 환영합니다!
+            <UserNickname onClick={() => navigate('/myinfo')}>{nickname}</UserNickname> 님 환영합니다!
+            
             <NoticeBell onClick={() => navigate('/noticepage')}>
               <FaBell size={18} />
               {noticeCount > 0 && <NoticeNum>{noticeCount}</NoticeNum>}
             </NoticeBell>
-          </WelcomeText>
-        ) : (
-          <>
-            <LoginButton onClick={() => navigate('/login')}>로그인</LoginButton>
-          </>
-        )}
+          </WelcomeText>) : (<LoginButton onClick={() => navigate('/login')}>로그인</LoginButton>)}
       </LoginMenu>
     </HeaderContainer>
   );
