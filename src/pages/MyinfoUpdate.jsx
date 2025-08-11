@@ -233,7 +233,7 @@ function MyinfoUpdate() {
             <div>
               <Label>비밀번호</Label>
               <Input
-                type="password"
+                type="text"
                 value={tempPassword}
                 onChange={(e) => setTempPassword(e.target.value)}
               />

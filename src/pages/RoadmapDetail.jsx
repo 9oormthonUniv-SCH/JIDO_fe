@@ -2,14 +2,14 @@ import styled from "styled-components";
 import TopHeader from "../components/TopHeader";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaHeart, FaRegHeart, FaReply, FaTrash } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaReply, FaTrash, FaBookmark,FaRegBookmark} from "react-icons/fa";
 
 const Container = styled.div`
   display: flex;
   flex-direction: column;
   gap: 20px;
   align-items: center;
-  padding-top: 100px;
+  padding-top: 80px;
   box-sizing: border-box;
   margin-top: 50px;
 `;
@@ -24,7 +24,78 @@ const AllContainer = styled.div`
   align-items: center;
   padding: 50px 20px 30px;
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+  // position: relative; 
 `;
+const ContainerButton = styled.div`
+  display: flex;
+  justify-content: space-between;   /* 양 끝 배치 */
+
+  width: 100%;
+  max-width: 900px;                 /* AllContainer와 폭 맞춤 */
+  padding: 0 20px;                  /* 좌우 여백 */
+
+  margin-top: 8px;
+`;
+
+const DeleteContainer =styled.div`
+
+display:flex;
+gap:10px;
+margin-left:auto;
+
+
+`;
+
+const BookmarkButton =styled.button`
+  background-color:#fafdfb;
+  color: #2e5c4d;
+   font-size: 20px;
+   cursor: pointer;
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   border:none;
+   font-weight:bold;
+   margin-left:20px;
+  //  position: absolute;  
+  //   top: 16px;
+  //   right: 16px;
+
+
+`;
+
+
+const DeleteButton = styled.button`
+  background-color: #e57373;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #d32f2f;
+  }
+`;
+
+
+const UpdateButton = styled.button`
+  background-color: #64b5f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #1976d2;
+  }
+`;
+
 
 const Title = styled.h1`
   font-weight: bold;
@@ -249,7 +320,7 @@ function RoadmapDetail() {
   const [replyState, setReplyState] = useState("");
   const [replyTarget, setReplyTarget] = useState(null);
   const [roadmap, setRoadmap] = useState(null);
-
+  const [bookmark,setBookmark]=useState(false);
   useEffect(() => {
     const storedNickname = localStorage.getItem("nickname");
     const storedProfileImg = localStorage.getItem("profileImg");
@@ -262,6 +333,21 @@ function RoadmapDetail() {
     }
   }, [id]);
 
+  const handleDeletePost = () => { 
+    const roadmaps = JSON.parse(localStorage.getItem("roadmaps")) || [];
+    const postId = Number(id);
+    
+    if(postId >=0 && postId < roadmaps.length){
+      roadmaps.splice(postId,1);
+      localStorage.setItem("roadmaps",JSON.stringify(roadmaps));
+      alert("로드맵이 삭제되었습니다");
+      navigate("/");
+
+    }else {
+      alert("오루가 발생하였습니다")
+    }
+  };
+    
   const handleLike = () => setLikeState((prev) => !prev);
 
   const handleComment = () => {
@@ -320,10 +406,27 @@ function RoadmapDetail() {
     setReplyTarget(null);
   };
 
+  const handleBookmark = () => { setBookmark(prev=> !prev);};
+
   return (
     <>
       <TopHeader nickname={nickname} />
+     
       <Container>
+      
+       {roadmap?.author === nickname && (
+         <ContainerButton>
+           <BookmarkButton onClick={handleBookmark}>
+          {bookmark ? <FaBookmark /> : <FaRegBookmark />}북마크</BookmarkButton>
+          <DeleteContainer>
+        <DeleteButton onClick={handleDeletePost}>삭제</DeleteButton>
+        <UpdateButton onClick={()=>navigate(`/edit/${id}`)}>수정</UpdateButton>
+         </DeleteContainer>
+  
+      </ContainerButton>
+       )}
+       
+      
         <AllContainer>
           <Title>{roadmap?.title || "제목 없음"}</Title>
           {roadmap?.category && <CategoryPath>{roadmap.category}</CategoryPath>}

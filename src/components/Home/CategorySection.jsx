@@ -1,39 +1,35 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 
-// 스타일 정의 시작
 const CategoryContainer = styled.div`
-  position: relative;
   background: #ffffff;
-  padding: 20px;
-  border-bottom: 1px solid #eee;
+  padding:10px;
   margin-top: 30px;
-  border-radius: 8px;
 `;
 
-const CategoryRow = styled.div`
-  display: flex;
-  justify-content: center;
-  gap: 40px;
-  flex-wrap: wrap;
+//대분류 중뷴류 카테고리 박스
+const CategoryBox = styled.div`
+  display:flex;
+  justify-content:center;
+  gap:40px;
+
 `;
 
 const MainCategory = styled.div`
-  position: relative;
-  font-size: 18px;
-  font-weight: bold;
+  font-size:18px;
+  font-weight:bold;
   color: #2e5c4d;
-  cursor: pointer;
+  cursor:pointer;
   padding: 10px;
-  border-radius: 6px;
-  background: ${(props) => (props.active ? "#e6f2ef" : "transparent")};
+  border-radius:6px;
+  background:${(props) => (props.active ? "#e6f2ef" : "transparent")};
 
   &:hover {
     background: #e6f2ef;
   }
 `;
 
-const SubCategoryRow = styled.div`
+const SubCategoryBox = styled.div`
   display: ${(props) => (props.active ? "flex" : "none")};
   justify-content: center;
   gap: 25px;
@@ -86,83 +82,79 @@ const SubSubCategoryItem = styled.div`
     background: #f2f2f2;
   }
 `;
-// 스타일 정의 끝
 
-function CategorySection({
-  categories,
-  activeCategory,
-  selectedCategory,
-  setActiveCategory,
-  filterRoadmaps,
-}) {
-  const [activeSubCategory, setActiveSubCategory] = useState(null); // ✅ 소분류 제어 상태
+
+function CategorySection({ categories, selectedCategory, filterRoadmaps }) {
+  const [activeMain, setActiveMain] = useState(null);
+  const [activeSub, setActiveSub] = useState(null);
+
+  const handleMainClick = (main) => {
+    setActiveMain(activeMain === main ? null : main); 
+    setActiveSub(null);
+    filterRoadmaps(main);
+  };
+
+  const handleMiddleClick = (main, sub) => {
+    const chooselist = `${main} > ${sub}`;
+    setActiveSub(activeSub === chooselist ? null : chooselist);
+    filterRoadmaps(chooselist);
+  };
+
+
+  const handleSubClick = (fullPath, item, e) => {
+    e.stopPropagation(); 
+    filterRoadmaps(`${fullPath} > ${item}`);
+    setActiveMain(null);
+    setActiveSub(null);
+  };
 
   return (
     <CategoryContainer>
-      <CategoryRow>
+     
+     {/*상단 카테고리 박스들 */}
+      <CategoryBox>
         <MainCategory
           active={selectedCategory === "전체 로드맵"}
-          onClick={() => {
-            setActiveCategory(null);
-            setActiveSubCategory(null);
-            filterRoadmaps("전체");
-          }}
-        >
-          전체
+          onClick={() => { setActiveMain(null);  setActiveSub(null); filterRoadmaps("전체");}}>전체
         </MainCategory>
 
-        {Object.keys(categories).map((mainList, idx) => (
-          <MainCategory
-            key={idx}
-            active={activeCategory === mainList}
-            onClick={() => {
-              const isSame = activeCategory === mainList;
-              setActiveCategory(isSame ? null : mainList);
-              setActiveSubCategory(null); // 대분류 바꾸면 소분류 초기화
-              filterRoadmaps(mainList);
-            }}
-          >
-            {mainList}
-          </MainCategory>
-        ))}
-      </CategoryRow>
+        {Object.keys(categories).map((main) => (
+          <MainCategory key={main}  active={activeMain === main}  onClick={() => handleMainClick(main)}>{main}</MainCategory>))}
+      </CategoryBox>
 
-      {Object.keys(categories).map((mainList, idx) => (
-        <SubCategoryRow key={idx} active={activeCategory === mainList}>
-          {Object.keys(categories[mainList]).map((subList, subIdx) => {
-            const fullPath = `${mainList} > ${subList}`;
-            const isActiveSub = activeSubCategory === fullPath;
+      {/* 마지막 카테고리 */}
+      {Object.keys(categories).map((main) => (
+        <SubCategoryBox key={main} active={activeMain === main}>
+          {Object.keys(categories[main]).map((sub) => {
+            const fullPath = `${main} > ${sub}`;
+            const isActiveSub = activeSub === fullPath;
 
             return (
               <SubCategoryItem
-                key={subIdx}
-                onClick={() => {
-                  setActiveSubCategory(isActiveSub ? null : fullPath);
-                  filterRoadmaps(fullPath);
-                }}
+                key={sub}
+                onClick={() => handleMiddleClick(main, sub)}
               >
-                {subList}
+                {sub}
+
+                {/* 서브-서브 메뉴 */}
                 {isActiveSub && (
                   <SubSubCategoryMenu>
-                    {categories[mainList][subList].map((item, itemIdx) => (
-                     <SubSubCategoryItem
-  key={itemIdx}
-  onClick={(e) => {
-    e.stopPropagation(); // 부모 중분류 클릭 방지
-    filterRoadmaps(`${fullPath} > ${item}`);
-    setActiveCategory(null);          // ✅ 대분류 접기
-    setActiveSubCategory(null);       // ✅ 소분류 접기
-  }}
->
-  {item}
-</SubSubCategoryItem>
+                    {categories[main][sub].map((item) => (
+                      <SubSubCategoryItem
+                        key={item}
+                        onClick={(e) =>
+                          handleSubClick(fullPath, item, e)
+                        }
+                      >
+                        {item}
+                      </SubSubCategoryItem>
                     ))}
                   </SubSubCategoryMenu>
                 )}
               </SubCategoryItem>
             );
           })}
-        </SubCategoryRow>
+        </SubCategoryBox>
       ))}
     </CategoryContainer>
   );

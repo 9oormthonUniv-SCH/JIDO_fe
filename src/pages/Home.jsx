@@ -4,7 +4,8 @@ import TopHeader from "../components/TopHeader";
 import { useNavigate } from "react-router-dom";
 import categories from "../data/categories";
 import WelcomeSection from "../components/Home/WelcomeSection";
-import RoadmapSection from "../components/Home/RoadmapSection";
+import CategorySection from "../components/Home/CategorySection";
+import RoadmapList from "../components/Home/RoadmapList";
 
 const HomeContainer = styled.div`
   display: flex;
@@ -17,7 +18,6 @@ function Home() {
   const [nickname, setNickname] = useState("");
   const [roadmaps, setRoadmaps] = useState([]);
   const [filteredRoadmaps, setFilteredRoadmaps] = useState([]);
-  const [activeCategory, setActiveCategory] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("전체 로드맵");
   const navigate = useNavigate();
 
@@ -34,13 +34,11 @@ function Home() {
     if (category === "전체") {
       setFilteredRoadmaps(roadmaps);
       setSelectedCategory("전체 로드맵");
-      setActiveCategory(null);
-      return;
+      return; 
     }
-
-    const filtered = roadmaps.filter((roadmap) => {
-      return roadmap.category?.includes(category);
-    });
+    const filtered = roadmaps.filter((roadmap) =>
+      roadmap.category?.includes(category)
+    );
     setFilteredRoadmaps(filtered);
     setSelectedCategory(category);
   };
@@ -58,16 +56,8 @@ function Home() {
       <TopHeader nickname={nickname} />
       <HomeContainer>
         <WelcomeSection />
-        <RoadmapSection
-          categories={categories}
-          
-          activeCategory={activeCategory}
-          selectedCategory={selectedCategory}
-          filteredRoadmaps={filteredRoadmaps}
-          setActiveCategory={setActiveCategory}
-          filterRoadmaps={filterRoadmaps}
-          handleCardClick={handleCardClick}
-        />
+       <CategorySection categories={categories} selectedCategory={selectedCategory} filterRoadmaps={filterRoadmaps}/>
+       <RoadmapList selectedCategory={selectedCategory} filteredRoadmaps={filteredRoadmaps} handleCardClick={handleCardClick}/>
       </HomeContainer>
     </>
   );
