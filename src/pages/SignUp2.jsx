@@ -2,7 +2,11 @@ import{ useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import TopHeader from "../components/TopHeader";
-import categories from "../data/categories";  
+import categories from "../data/categories"; 
+import { signUp } from "../api/auth"; 
+import { fetchCategories } from "../api/users";
+import { useEffect } from "react";
+
 
 const Container=styled.div`
   display:flex;
@@ -75,7 +79,12 @@ function SignUp2() {
   const [selectSecond, setSelectSecond] = useState(null);
   const [selectThird, setSelectThird] = useState(null);
   const [selectedList, setSelectedList] = useState([]);
+  const [allCategories, setAllCategories] = useState([]); // 서버에서 내려온 전체 카테고리
   const navigate = useNavigate();
+
+ useEffect(() => {
+  fetchCategories().then(setAllCategories).catch(console.error);
+ }, []);
 
   const handleSelectThird = (sub) => {
     const item = `${selectFirst} > ${selectSecond} > ${sub}`;
@@ -84,6 +93,45 @@ function SignUp2() {
     }
     setSelectThird(sub);
   };
+
+  const doSignUp = async () => {
+    try {
+      const userLoginId = localStorage.getItem("userLoginId") ?? "";
+      const password    = localStorage.getItem("password") ?? "";
+      const email       = localStorage.getItem("email") ?? "";
+      const nickName    = localStorage.getItem("nickname") ?? ""; // 대문자 N 중요!
+      const age         = parseInt(localStorage.getItem("age") ?? "20", 10);
+
+      if (!userLoginId || !password || !email || !nickName) {
+        return alert("1단계 정보가 없습니다. 다시 진행해주세요.");
+      }
+
+          // 선택한 라벨 ["대 > 중 > 소"] → 소분류명만 추출 → 카테고리 ID로 매핑
+   const leafNames = selectedList.map(s => s.split(">").pop().trim());
+     const categoriesPayload = leafNames
+       .map(name => allCategories.find(c => c.name === name && c.depth === 3)?.categoryId)
+       .filter(Boolean); // ex: ["1.1.2", "1.5.1"]
+
+     if (categoriesPayload.length === 0) {
+       return alert("관심 카테고리를 최소 1개 이상 선택해 주세요.");
+     }
+
+      const res = await signUp({
+        userLoginId, //로그인용 아이디
+        password,
+        email,
+        nickName,
+        age,
+        categories: categoriesPayload,
+      });
+     //userId는 서버 아이디 res객체가 있으면 그안의 userId속성을 꺼내옴
+      alert(`회원가입 성공! (id: ${res?.userId ?? "?"})`);
+      navigate("/login");
+    } catch (e) {
+      alert("회원가입 실패. 콘솔/네트워크 탭을 확인하세요.");
+    }
+  };
+
 
   return (
     <>
@@ -139,12 +187,7 @@ function SignUp2() {
         </ChooseBoxContainer>
 
     <SignUpButton
-  onClick={() => { localStorage.setItem("categories", JSON.stringify(selectedList));
-                   navigate("/login");
-  }}
->
-  회원가입
-</SignUpButton>
+  onClick={doSignUp}> 회원가입</SignUpButton>
       </Container>
     </>
   );

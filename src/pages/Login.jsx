@@ -1,6 +1,8 @@
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { login } from "../api/auth";
+import api from "../api/client";
 
 const Container = styled.div`
   display:flex;
@@ -83,19 +85,51 @@ const SignupLink = styled.p`
 
 function Login() {
   const navigate = useNavigate();
-  const [userId, setUserId] = useState("");
+  const [userLoginId, setUserLoginId] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading]   = useState(false);
 
-  const handleSubmit = (e) => { e.preventDefault()
-    const storedUserId = localStorage.getItem("userId");
-    const storedPassword = localStorage.getItem("password");
-   
-     if (userId === storedUserId && password === storedPassword) {
-        navigate("/"); } 
-        else {
-        alert("아이디 또는 비밀번호가 잘못되었습니다.");}
-  };
 
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!userLoginId || !password) return alert("아이디와 비밀번호를 입력하세요.");
+
+  try {
+    setLoading(true);
+
+    // 로그인 API 호출
+    const res = await login({ username: userLoginId, password });
+    const data = res?.data ?? res; // axios wrapper 방어
+    
+    let token =
+      data?.accessToken ||
+      data?.token ||
+      (res?.headers?.authorization?.startsWith("Bearer ")
+        ? res.headers.authorization.split(" ")[1]
+        : "");
+
+    if (!token) {
+      console.warn("로그인 응답에 accessToken이 없습니다. 백엔드 확인 필요.");
+    } else {
+      localStorage.setItem("accessToken", token); // ★ 인터셉터가 자동으로 사용
+    }
+
+     // 2) 사용자 정보 저장(서버가 주는 키에 맞춰 세팅)
+    if (data?.id) localStorage.setItem("userId", String(data.id));
+    if (data?.nickname || userLoginId)
+      localStorage.setItem("nickname", data?.nickname || userLoginId);
+
+    localStorage.setItem("auth", "true");
+    window.dispatchEvent(new Event("auth-change"));
+
+    navigate("/");
+  } catch (err) {
+    console.error(err?.response || err);
+    alert("로그인 실패. 아이디/비밀번호를 확인하세요.");
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <Container>
       <Logo onClick={() => navigate("/")}>JIDO</Logo>
@@ -103,14 +137,26 @@ function Login() {
 
       <LoginContainer onSubmit={handleSubmit}>
         <Label>아이디</Label>
-       <Input type="text"  placeholder="아이디를 입력하세요" value={userId}
-               onChange={(e) => setUserId(e.target.value)}/>
+        <Input
+          type="text"
+          placeholder="아이디를 입력하세요"
+          value={userLoginId}
+          onChange={(e) => setUserLoginId(e.target.value)}
+          disabled={loading}
+        />
 
-       <Label>비밀번호</Label>
-       <Input type="password" placeholder="비밀번호를 입력하세요" value={password}
-              onChange={(e) => setPassword(e.target.value)}/>
+        <Label>비밀번호</Label>
+        <Input
+          type="password"
+          placeholder="비밀번호를 입력하세요"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={loading}
+        />
 
-        <Button type="submit">로그인</Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? "로그인 중..." : "로그인"}
+        </Button>
       </LoginContainer>
 
       <SignupMentCon>

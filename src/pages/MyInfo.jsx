@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import TopHeader from "../components/TopHeader";
+import { logout } from "../api/auth"; 
+import { getUserById } from "../api/users";
+
 
 const TotalContainer = styled.div`
   display: flex;
@@ -124,41 +127,36 @@ const CategoryItem = styled.div`
 
 function MyInfo() {
   const [nickname, setNickname] = useState("");
-  const [signupDate, setSignupDate] = useState(""); 
+  const [signupDate, setSignupDate] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [userLoginId, setUserLoginId] = useState("");
+  const [password, setPassword] = useState(""); // 저장된 게 있으면 표시용
   const [selectedList, setSelectedList] = useState([]);
-  const [userId, setUserId] = useState("");
-  const [profileImg, setProfileImg] = useState(""); 
-  
+  const [profileImg, setProfileImg] = useState("");
+
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedNickname = localStorage.getItem("nickname");
-    const storedDate = localStorage.getItem("signupDate");
-    const storedEmail = localStorage.getItem("email");
-    const storedId = localStorage.getItem("userId");
-    const storedPassword = localStorage.getItem("password");
-    const storedSelectList = localStorage.getItem("categories");
-    const storedProfileImg = localStorage.getItem("profileImg"); 
+    const userIdStr = localStorage.getItem("userId");
 
-    if (storedNickname) setNickname(storedNickname);
-    if (storedDate) setSignupDate(storedDate);
-    if (storedEmail) setEmail(storedEmail);
-    if (storedPassword) setPassword(storedPassword);
-    if (storedSelectList) setSelectedList(JSON.parse(storedSelectList));
-    if (storedId) setUserId(storedId);
-    if (storedProfileImg) setProfileImg(storedProfileImg); 
+    // 서버 값으로 덮어쓰기
+    (async () => {
+      try {
+        const userId = Number(userIdStr);
+        const u = await getUserById(userId);
+        setNickname(u?.nickname ?? "");
+        setEmail(u?.email ?? "");
+        setUserLoginId(u?.userLoginId ?? "");
+      } catch (err) {
+        console.error("내 정보 조회 실패:", err?.response || err);
+      }
+    })();
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await logout(); } catch (e) { console.warn("서버 로그아웃 실패(무시 가능):", e?.response || e); }
     localStorage.clear();
-    setNickname("");
-    setSignupDate("");
-    setEmail("");
-    setPassword("");
-    setUserId("");
-    setProfileImg(""); 
+    window.dispatchEvent(new Event("auth-change"));
     navigate("/");
   };
 
@@ -167,11 +165,10 @@ function MyInfo() {
       <TopHeader nickname={nickname} />
       <TotalContainer>
         <TopInfo>
-          
           <MyImg src={profileImg || "/default_profile.png"} />
           <Container>
-            <UserName>{nickname}</UserName>
-            <SignupDate>가입일: {signupDate || "정보 없음"}</SignupDate>
+            <UserName>{nickname || userLoginId || "사용자"}</UserName>
+            {signupDate && <SignupDate>가입일: {signupDate}</SignupDate>}
           </Container>
         </TopInfo>
 
@@ -183,11 +180,7 @@ function MyInfo() {
             </div>
             <div>
               <Label>아이디</Label>
-              <Input>{userId}</Input>
-            </div>
-            <div>
-              <Label>비밀번호</Label>
-              <Input>{password}</Input>
+              <Input>{userLoginId}</Input>
             </div>
           </LoginContainer>
         </ChangeContainer>
@@ -195,17 +188,13 @@ function MyInfo() {
         <h3>관심 카테고리</h3>
         <CategoryList>
           {selectedList.length > 0 ? (
-            selectedList.map((list, idx) => (
-              <CategoryItem key={idx}>{list}</CategoryItem>
-            ))
+            selectedList.map((list, idx) => <CategoryItem key={idx}>{list}</CategoryItem>)
           ) : (
             <p>선택된 관심 카테고리가 없습니다.</p>
           )}
         </CategoryList>
 
-        <EditMyInfoB onClick={() => navigate("/infoupdate")}>
-          내 정보 수정
-        </EditMyInfoB>
+        <EditMyInfoB onClick={() => navigate("/infoupdate")}>내 정보 수정</EditMyInfoB>
         <LogoutButton onClick={handleLogout}>로그아웃</LogoutButton>
       </TotalContainer>
     </>

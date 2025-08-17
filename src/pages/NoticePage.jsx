@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopHeader from "../components/TopHeader";
 import { FaHeart, FaComment, FaBookmark, FaBell } from "react-icons/fa";
+import { fetchNotifications, markAllRead, markOneRead } from "../api/notification";
 
 /* =========================
    1) 화면 레이아웃 / 기본 스타일
@@ -106,65 +107,90 @@ function getColorByType(type) {
   return "#555";                              // 기본 회색
 }
 
+// createdAt 포맷 (간단 버전)
+const toDateLabel = (iso) => {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString();
+  } catch { return ""; }
+};
+
+
 /* =========================
    3) 메인 컴포넌트
    ========================= */
 function NoticePage() {
-  const [nickname, setNickname] = useState("");  // 헤더에 표시할 닉네임
-  const [notices, setNotices] = useState([]);    // 알림 목록
+  const [nickname, setNickname] = useState("");
+  const [notices, setNotices] = useState([]);
 
-  // (1) 첫 렌더링 시: 닉네임/알림을 로컬스토리지에서 가져오기
+  // 서버에서 목록 가져오기
+  const load = async () => {
+    try {
+      const list = await fetchNotifications();      // GET /notifications
+      // 서버 모델 -> 화면 모델로 살짝 포맷
+      const mapped = (list || []).map(n => ({
+        id: n.id ?? n.notificationId,        // 서버가 어떤 키를 주든 대응
+        type: n.type ?? "bell",              // 없으면 기본
+        message: n.message,
+        date: toDateLabel(n.createdAt),
+        read: !!n.isRead,
+        url: n.url || null,
+      }));
+      setNotices(mapped);
+      // 헤더 배지 갱신용(선택) — auth-change를 날리면 TopHeader 폴링 없이 즉시 반영 가능
+      window.dispatchEvent(new Event("auth-change"));
+    } catch (e) {
+      console.error("[NOTICE] fetch error", e?.response || e);
+      setNotices([]);
+    }
+  };
+
   useEffect(() => {
-    // 닉네임 불러오기
-    const storedNickname = localStorage.getItem("nickname");
-    if (storedNickname) {
-      setNickname(storedNickname);
-    }
-
-    // 알림 불러오기
-    const saved = localStorage.getItem("notices");
-
-    // 저장된 알림이 없거나, 빈 배열이면 더미 데이터로 채움
-    if (!saved || JSON.parse(saved).length === 0) {
-      const noticeList = [
-        { type: "like",     message: "사용자 A님이 내 로드맵을 좋아합니다.",    date: "2분 전",  read: false },
-        { type: "comment",  message: "사용자 B님이 내 로드맵에 댓글을 남겼습니다.", date: "10분 전", read: false },
-        { type: "bookmark", message: "사용자 C님이 내 로드맵을 북마크했습니다.",   date: "1시간 전", read: false },
-        { type: "like",     message: "사용자 D님이 내 로드맵을 좋아합니다.",    date: "어제",    read: false },
-      ];
-      setNotices(noticeList);
-      localStorage.setItem("notices", JSON.stringify(noticeList));
-    } else {
-      // 저장된 알림이 있으면 그대로 사용
-      setNotices(JSON.parse(saved));
-    }
+    // 닉네임(헤더용)
+    setNickname(localStorage.getItem("nickname") || "");
+    load();
   }, []);
 
-  // (2) notices가 바뀔 때마다 로컬스토리지에 자동 저장
-  useEffect(() => {
-    localStorage.setItem("notices", JSON.stringify(notices));
-  }, [notices]);
+  // 모두 읽음
+  const handleMarkAll = async () => {
+    try {
+      await markAllRead();            // PUT /notifications/mark-all-read
+      await load();
+    } catch (e) {
+      console.error("[NOTICE] mark-all", e?.response || e);
+    }
+  };
 
-  
-  // 전체 읽음 처리
-  const  readAllList=()=> {
-    const next = notices.map(n => ({ ...n, read: true }));
-    setNotices(next);
-  }
+  // 개별 토글(읽지 않았다면 읽음 처리만 서버 호출)
+  const toggleRead = async (idx) => {
+    const item = notices[idx];
+    if (!item) return;
 
-  // 특정 인덱스 알림 읽음/안읽음 토글
-  const toggleRead=(index) =>{
-    const next = notices.map((n, i) => {
-      if (i === index) {
-        return { ...n, read: !n.read };
+    // 서버에서 id를 내려주지 않으면 개별 처리 불가 → 그냥 url로 이동만
+    if (!item.id) {
+      if (item.url) window.location.href = item.url;
+      return;
+    }
+
+    if (!item.read) {
+      try {
+        await markOneRead(item.id);   // PUT /notifications/{id}/read
+        // 낙관적 업데이트
+        setNotices(prev => prev.map((n, i) => i === idx ? { ...n, read: true } : n));
+        window.dispatchEvent(new Event("auth-change"));
+      } catch (e) {
+        console.error("[NOTICE] mark-one", e?.response || e);
       }
-      return n;
-    });
-    setNotices(next);
-  }
+    } else {
+      // 서버에 “다시 안읽음” API가 없다면, UI만 토글하지 말고 그대로 두는 편이 안전
+      // 필요하면 그냥 링크 이동만 처리
+      if (item.url) window.location.href = item.url;
+    }
+  };
 
-  // 읽지 않은 알림 개수
   const unreadCount = notices.filter(n => !n.read).length;
+
 
   return (
     <>
@@ -174,9 +200,8 @@ function NoticePage() {
       <Container>
         <TopContainer>
           <Title>알림</Title>
-          <MarkAllButton onClick={readAllList} disabled={unreadCount === 0}>모든 알림 읽기</MarkAllButton>
+           <MarkAllButton onClick={handleMarkAll} disabled={unreadCount === 0}>모든 알림 읽기</MarkAllButton>
         </TopContainer>
-
         <NoticeList>
           {notices.length === 0 ? (<p>알림이 없습니다.</p>) : (
             notices.map((notice, idx) => {

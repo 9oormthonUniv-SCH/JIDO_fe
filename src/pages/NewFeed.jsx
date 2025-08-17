@@ -4,7 +4,7 @@ import Logo from "../components/Logo";
 import { useNavigate } from "react-router-dom";
 import { FaTrash } from "react-icons/fa";
 import categories from "../data/categories";  
-
+import { createRoadmap, createSection, createStep, createStepContent } from "../api/roadmap.js";
 
 
 
@@ -295,10 +295,6 @@ function NewFeed() {
 
   const[openState,setOpenState]=useState(false);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("nickname");
-    if (stored) setNickname(stored);
-  }, []);
 
   const addLevel = () => {setLevels((prev)=>[...prev,{steps:[]}]);};
 
@@ -394,30 +390,60 @@ function NewFeed() {
 
   const handleOpen = () => setOpenState((prev)=> !prev);
 
- const saveRoadmap = () => {
-  const currentStored = JSON.parse(localStorage.getItem("roadmaps")) || [];
+const saveRoadmap = async () => {
+  if (!title.trim()) return alert("제목을 입력해 주세요.");
+  if (!description.trim()) return alert("설명을 입력해 주세요.");
 
-  // 카테고리 경로 생성 (대분류 > 중분류 > 소분류)
-  const categoryPath = [
-    firstSelect,
-    secondSelect,
-    thirdSelect
-  ]
-    .filter(Boolean) // null, undefined 제거
-    .join(" > ");
+  const categoryPath = [firstSelect, secondSelect, thirdSelect].filter(Boolean).join(" > ");
+  if (!categoryPath) return alert("카테고리를 선택해 주세요.");
 
-  const newRoadmap = { 
-    title, 
-    description, 
-    author: nickname, 
-    levels,
-    category: categoryPath // 카테고리 정보 저장
-  };
+const authorId = Number(localStorage.getItem("userId"));  
+if (!authorId) {
+    alert("로그인이 필요합니다.");
+    navigate("/login");
+    return;
+  }
 
-  localStorage.setItem("roadmaps", JSON.stringify([...currentStored, newRoadmap]));
-  navigate("/");
+  //서버호출구간
+  try {
+const roadmap = await createRoadmap({
+  authorId,   // ✅ 필수
+  title,
+  description,
+  category: categoryPath,
+  isPublic: openState,
+}); 
+
+const roadmapId = roadmap?.roadmapId;
+    if (!roadmapId) throw new Error("roadmapId가 응답에 없습니다.");
+
+    // 2) 섹션/스텝/체크리스트 생성
+    for (let li = 0; li < levels.length; li++) {
+      const section = await createSection(roadmapId, `Lv.${li + 1}`, li + 1);
+      const sectionId = section?.sectionId;
+      if (!sectionId) throw new Error("sectionId가 응답에 없습니다.");
+
+      for (let si = 0; si < levels[li].steps.length; si++) {
+        const s = levels[li].steps[si];
+        const createdStep = await createStep(sectionId, s.title || `Step ${si + 1}`, si + 1);
+        const stepId = createdStep?.stepId;
+        if (!stepId) throw new Error("stepId가 응답에 없습니다.");
+
+        for (const raw of s.checklist) {
+          const text = (raw || "").trim();
+          if (text) await createStepContent(stepId, text, false);
+        }
+      }
+    }
+
+    alert("로드맵이 업로드되었습니다!");
+    navigate("/");
+  } catch (err) {
+    console.error("[로드맵 업로드 실패]", err?.response?.data || err);
+    const msg = err?.response?.data?.error || err?.message || "서버 오류";
+    alert(`업로드 실패: ${msg}`);
+  }
 };
-
   return (
     <AllContainer>
       <Logo />

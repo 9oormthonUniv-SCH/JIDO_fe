@@ -2,6 +2,7 @@
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { getUserByNickname } from "../api/users"; 
 
 const Container = styled.div`
   display:flex;
@@ -114,11 +115,54 @@ function SignUp() {
   const navigate = useNavigate();
 
   const[nickname,setNickname]=useState("");
-  const [major, setMajor] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [email, setEmail] = useState("");
-  const [userId, setUserId] = useState("");
+  const [userLoginId, setUserLoginId] = useState("");
   const [password, setPassword] = useState("");
+  
+
+    // 생년월일 → 나이(만) 대략 계산
+  const toAge = (yyyy_mm_dd) => {
+    if (!yyyy_mm_dd) return 20;
+    const [y,m,d] = yyyy_mm_dd.split("-").map(Number);
+    const today = new Date();
+    let age = today.getFullYear() - y;
+    const md = (today.getMonth()+1)*100 + today.getDate();
+    if (md < m*100 + d) age -= 1;
+    return Math.max(age, 0);
+  };
+
+const checkNickname = async () => {
+  if (!nickname.trim()) return alert("닉네임을 입력하세요.");
+  try {
+    await getUserByNickname(nickname); // 200이면 존재한다고 가정
+    alert("이미 사용 중인 닉네임입니다.");
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      alert("사용 가능한 닉네임입니다.");
+    } else {
+      alert("닉네임 확인 중 오류가 발생했습니다.");
+      console.error(err);
+    }
+  }
+};
+
+    const goNext = () => {
+     if (!nickname || !email || !userLoginId || !password) {
+      return alert("필수 항목(닉네임/이메일/아이디/비밀번호)을 입력하세요.");
+    }
+    localStorage.setItem("nickname", nickname);
+    localStorage.setItem("email", email);
+   localStorage.setItem("userLoginId", userLoginId);
+    localStorage.setItem("password", password);
+    localStorage.setItem("age", String(toAge(birthDate)));
+
+    const today = new Date().toLocaleDateString();
+    localStorage.setItem("signupDate", today);
+
+    navigate("/signup2");
+  };
+
 
   return (
     <Container>
@@ -127,13 +171,10 @@ function SignUp() {
       <LoginContainer>
         <Label>닉네임</Label>
         <NicknameContainer>
-        <NicknameInput placeholder="닉네임을 입력하세요" onChange={(e)=>setNickname((e.target.value))} />
-       <CheckButton>중복 확인</CheckButton>
+        <NicknameInput placeholder="닉네임을 입력하세요" value={nickname} onChange={(e) => setNickname(e.target.value)} />
+       <CheckButton onClick={checkNickname} >중복 확인</CheckButton>
        </NicknameContainer>
 
-
-        <Label>학과</Label>
-        <Input placeholder="학과를 입력하세요" onChange={(e)=>setMajor(e.target.value)} />
 
         <Label>생년월일</Label>
         <Input type="date" placeholder="생년월일을 선택하세요" onChange={(e)=> setBirthDate(e.target.value)} />
@@ -142,29 +183,13 @@ function SignUp() {
         <Input type="email" placeholder="이메일을 입력하세요" onChange={(e)=> setEmail(e.target.value)} />
 
         <Label>아이디</Label>
-        <Input placeholder="아이디를 입력하세요" onChange={(e)=>setUserId(e.target.value)} />
+        <Input placeholder="아이디를 입력하세요" onChange={(e)=>setUserLoginId(e.target.value)} />
 
         <Label>비밀번호</Label>
         <Input type="password" placeholder="비밀번호를 입력하세요" onChange={(e)=> setPassword(e.target.value)} />
 <Button
   type="button"
-  onClick={() => {
-
-    localStorage.setItem("nickname", nickname);  
-    localStorage.setItem("major", major);
-    localStorage.setItem("email", email);
-    localStorage.setItem("userId", userId);
-    localStorage.setItem("password", password);
-
-    // 가입일도 저장
-    const today = new Date().toLocaleDateString();
-    localStorage.setItem("signupDate", today);
-
-    navigate("/signup2");
-  }}
->
-  다음
-</Button>
+  onClick={goNext}>다음</Button>
 
       </LoginContainer>
     </Container>
