@@ -25,7 +25,7 @@ function App() {
         <Route path="/myinfo" element={<MyInfo/>}/>
         <Route path="/signup2" element={<SignUp2 />} />
         <Route path="/infoupdate" element={<MyinfoUpdate />} />
-        <Route path="/roadmap/:id" element={<RoadmapDetail/>} />
+        <Route path="/roadmaps/:id" element={<RoadmapDetail/>} />
         <Route path="/noticepage" element={<NoticePage />} />
         <Route path="/edit/:id" element={<EditFeedPage/>}/>
       </Routes>

@@ -284,8 +284,7 @@ const Knob = styled.div`
 
 function NewFeed() {
   const navigate = useNavigate();
-  const [nickname, setNickname] = useState("");
-  const [title, setTitle] = useState("");
+    const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [levels, setLevels] = useState([]);
 
@@ -403,7 +402,7 @@ if (!authorId) {
     navigate("/login");
     return;
   }
-
+ console.log(authorId);
   //서버호출구간
   try {
 const roadmap = await createRoadmap({
@@ -413,25 +412,34 @@ const roadmap = await createRoadmap({
   category: categoryPath,
   isPublic: openState,
 }); 
+console.log(roadmap);
 
 const roadmapId = roadmap?.roadmapId;
+   console.log(roadmapId);
     if (!roadmapId) throw new Error("roadmapId가 응답에 없습니다.");
 
     // 2) 섹션/스텝/체크리스트 생성
     for (let li = 0; li < levels.length; li++) {
       const section = await createSection(roadmapId, `Lv.${li + 1}`, li + 1);
+      console.log("섹션 응답:", section);
+      
       const sectionId = section?.sectionId;
       if (!sectionId) throw new Error("sectionId가 응답에 없습니다.");
+        console.log(sectionId);
 
       for (let si = 0; si < levels[li].steps.length; si++) {
         const s = levels[li].steps[si];
         const createdStep = await createStep(sectionId, s.title || `Step ${si + 1}`, si + 1);
+        console.log("스텝 응답:", createdStep);
+
         const stepId = createdStep?.stepId;
         if (!stepId) throw new Error("stepId가 응답에 없습니다.");
+         console.log(stepId);
 
         for (const raw of s.checklist) {
           const text = (raw || "").trim();
           if (text) await createStepContent(stepId, text, false);
+           console.log(text);
         }
       }
     }

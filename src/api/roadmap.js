@@ -4,7 +4,7 @@ import api from "./client.js";
 //로드맵
 export async function createRoadmap({ authorId, title, description, category, isPublic }) {
   const res = await api.post("/roadmaps", {
-    authorId,          // ✅ 추가
+    authorId,          
     title,
     description,
     category,
@@ -16,7 +16,7 @@ export async function createRoadmap({ authorId, title, description, category, is
 //레벨
 export async function createSection(roadmapId, title, sectionNum) {
 const body = { 
-  roadmap: { roadmapId },   // ✅ 객체 안에 id
+  roadmap: { roadmapId },   
   title, 
   sectionNum 
 };
@@ -28,19 +28,53 @@ const body = {
 //스텝
 export async function createStep(sectionId, title, stepNumber) {
 const body = { 
-  roadmapSection: { sectionId },  // ✅ 객체 안에 id
+  roadmapSection: { sectionId },  
   title, 
   stepNumber 
-};  const res = await api.post("/steps", body);
+};  
+ const res = await api.post("/steps", body);
   return res.data;
 }
 
 //체크리스트
 export async function createStepContent(stepId, content, finished = false) {
 const body = { 
-  step: { stepId },   // ✅ 객체 안에 id
+  step: { stepId },  
   content, 
   finished 
 };  const res = await api.post("/step-contents", body);
+  return res.data;
+}
+
+//로드맵 조회용
+
+//모든 로드맵-홈화면을위한ㄱ어
+export async function listRoadmaps() {
+  const res = await api.get("/roadmaps");
+  return res.data; // [{roadmapId, title, description, category, author: {...}, likes, scraps}, ...]
+}
+
+// 1) 로드맵 단건 조회
+export async function getRoadmap(roadmapId) {
+  const res = await api.get(`/roadmaps/${roadmapId}`);
+  return res.data;
+}
+
+// ✅ 모든 섹션 가져오기 (roadmapId로 필터)
+export async function listSections(roadmapId) {
+  const res = await api.get("/sections");
+  // roadmapId로 필터링
+  return res.data.filter(s => s.roadmap.roadmapId === Number(roadmapId));
+}
+
+// 3) 특정 섹션의 스텝 조회
+export async function listSteps(sectionId) {
+  const res = await api.get(`/sections/${sectionId}/steps`);
+  return res.data;
+}
+
+// 4) 특정 스텝의 콘텐츠 조회
+export async function listStepContents(stepId) {
+  const res = await api.get(`/steps/${stepId}/step-contents`);
   return res.data;
 }

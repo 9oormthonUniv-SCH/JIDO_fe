@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from "react";import styled from "styled-components";
+// src/pages/Home.jsx
+import { useEffect, useMemo, useState } from "react";
+import styled from "styled-components";
 import TopHeader from "../components/TopHeader";
-import { useNavigate, useSearchParams  } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import categories from "../data/categories";
 import WelcomeSection from "../components/Home/WelcomeSection";
 import CategorySection from "../components/Home/CategorySection";
 import RoadmapList from "../components/Home/RoadmapList";
+import { listRoadmaps , getRoadmap} from "../api/roadmap";
+import { searchAll } from "../api/search";
 
 const HomeContainer = styled.div`
   display: flex;
@@ -19,22 +23,46 @@ function Home() {
   const [selectedCategory, setSelectedCategory] = useState("전체 로드맵");
 
   const navigate = useNavigate();
-  const [params] = useSearchParams();
 
-  // URL 쿼리로 들어온 검색어 (예: /?query=백엔드)
+  // ✅ query 파라미터 읽기 + 바꾸기(setSearchParams) 둘 다 사용
+  const [params, setSearchParams] = useSearchParams();
   const queryRaw = params.get("query") || "";
   const query = queryRaw.trim().toLowerCase();
 
+  // 초기 데이터 로드
   useEffect(() => {
-    const stored = localStorage.getItem("nickname");
-    if (stored) setNickname(stored);
+    const cachedName = localStorage.getItem("nickname");
+    if (cachedName) setNickname(cachedName);
 
-    const savedRoadmaps = JSON.parse(localStorage.getItem("roadmaps") || "[]");
-    setRoadmaps(savedRoadmaps);
+    
   }, []);
 
-  // 카테고리 버튼 클릭 시 선택만 바꿔주면 됨 (실제 필터링은 useMemo에서 수행)
+   // 2) 검색어에 따라 서버 호출 (검색 있으면 searchAll, 없으면 listRoadmaps)
+  useEffect(() => {
+    (async () => {
+      try {
+        if (query) {
+          // 🔎 백엔드 검색 호출
+          const data = await searchAll(query); // { users: [...], roadmaps: [...] }
+          console.log(data);
+          setRoadmaps(data?.roadmaps ?? []);
+        } else {
+          
+          //여기서 전체로드맵요청하고 서버응답을 상태에 저장 
+          const data = await listRoadmaps();
+          setRoadmaps(data);
+          console.log(data);
+        }
+      } catch (err) {
+        console.error("로드맵/검색 불러오기 실패:", err);
+        setRoadmaps([]);
+      }
+    })();
+  }, [query]);
+
+  // 카테고리 클릭 시: 검색모드 종료(쿼리 제거) + 선택 카테고리 변경
   const filterRoadmaps = (category) => {
+    setSearchParams({}); // 🔴 URL에서 ?query= 제거 → 검색모드 종료
     if (category === "전체") {
       setSelectedCategory("전체 로드맵");
       return;
@@ -46,12 +74,12 @@ function Home() {
   const visibleRoadmaps = useMemo(() => {
     let list = roadmaps;
 
-    // 1) 카테고리 필터 (선택이 '전체 로드맵'이 아닐 때만)
+    // 1) 카테고리 필터
     if (selectedCategory && selectedCategory !== "전체 로드맵") {
       list = list.filter((r) => (r.category || "").includes(selectedCategory));
     }
 
-    // 2) 검색 필터 (제목 / 카테고리 / 작성자 닉네임)
+    // 2) 검색어 필터 (제목/카테고리/작성자)
     if (query) {
       list = list.filter((r) => {
         const haystack = [
@@ -68,27 +96,20 @@ function Home() {
     return list;
   }, [roadmaps, selectedCategory, query]);
 
-  // 카드 클릭: 필터된 배열의 idx → 원본 배열의 실제 idx 로 매핑 후 라우팅
-  const handleCardClick = (idxInVisible) => {
-    if (!nickname) {
-      navigate("/login");
-      return;
-    }
-    const picked = visibleRoadmaps[idxInVisible];
-    const realIndex = roadmaps.findIndex((r) => r === picked);
-    // 혹시 못 찾으면 안전하게 0으로
-    navigate(`/roadmap/${realIndex >= 0 ? realIndex : 0}`);
+  // 카드 클릭 → 상세로 이동
+  const handleCardClick = (roadmapId) => {
+    navigate(`/roadmaps/${roadmapId}`);
   };
 
-  // 상단 타이틀: 검색어가 있으면 "검색: ~", 없으면 선택 카테고리
-  const heading =
-    queryRaw.trim() ? `“${queryRaw.trim()}”검색 결과` : selectedCategory;
+  // 상단 타이틀
+  const heading = queryRaw.trim() ? `“${queryRaw.trim()}” 검색 결과` : selectedCategory;
 
   return (
     <>
       <TopHeader nickname={nickname} />
       <HomeContainer>
         <WelcomeSection />
+        
         <CategorySection
           categories={categories}
           selectedCategory={selectedCategory}

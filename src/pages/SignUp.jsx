@@ -134,6 +134,7 @@ function SignUp() {
 
 const checkNickname = async () => {
   if (!nickname.trim()) return alert("닉네임을 입력하세요.");
+  
   try {
     await getUserByNickname(nickname); // 200이면 존재한다고 가정
     alert("이미 사용 중인 닉네임입니다.");
@@ -153,7 +154,7 @@ const checkNickname = async () => {
     }
     localStorage.setItem("nickname", nickname);
     localStorage.setItem("email", email);
-   localStorage.setItem("userLoginId", userLoginId);
+    localStorage.setItem("userLoginId", userLoginId);
     localStorage.setItem("password", password);
     localStorage.setItem("age", String(toAge(birthDate)));
 

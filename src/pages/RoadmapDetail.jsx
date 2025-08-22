@@ -3,7 +3,8 @@ import TopHeader from "../components/TopHeader";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaHeart, FaRegHeart, FaReply, FaTrash, FaBookmark,FaRegBookmark} from "react-icons/fa";
-
+import {getRoadmap,listSections,listSteps,listStepContents,} from "../api/roadmap";
+import {addLike, removeLike, addBookmark, removeBookmark,} from "../api/roadmapLike";
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -310,142 +311,310 @@ const StepBox = styled.div`
 `;
 
 function RoadmapDetail() {
-  const { id } = useParams();
+  const { id } = useParams(); // URL의 roadmapId
+
+
   const navigate = useNavigate();
+
+  const userId = localStorage.getItem("userId"); // 로그인 시 저장해둔 userId
+  console.log(userId);
+
+  const [roadmap, setRoadmap] = useState(null);
+  const [sections, setSections] = useState([]);
   const [nickname, setNickname] = useState("");
-  const [profileImg, setProfileImg] = useState("");
+  const [bookmark, setBookmark] = useState(false);
   const [likeState, setLikeState] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentState, setCommentState] = useState("");
+
   const [replyState, setReplyState] = useState("");
   const [replyTarget, setReplyTarget] = useState(null);
-  const [roadmap, setRoadmap] = useState(null);
-  const [bookmark,setBookmark]=useState(false);
-  useEffect(() => {
-    const storedNickname = localStorage.getItem("nickname");
-    const storedProfileImg = localStorage.getItem("profileImg");
-    if (storedNickname) setNickname(storedNickname);
-    if (storedProfileImg) setProfileImg(storedProfileImg);
+  const [loading, setLoading] = useState(false);
 
-    const roadmaps = JSON.parse(localStorage.getItem("roadmaps")) || [];
-    if (roadmaps.length > 0 && id < roadmaps.length) {
-      setRoadmap(roadmaps[id]);
+// useEffect(() => {
+//   if (!id) return; // id 없으면 중단
+//   console.log(id);
+
+//   (async () => {
+//     try {
+//       setLoading(true);
+
+//       // 1) 로드맵 기본 정보
+//       const rm = await getRoadmap(id);
+//       console.log("로드맵 기본 정보:", rm);
+//       setRoadmap(rm);
+
+//       // 2) 이 로드맵의 섹션들만
+//       const rawSections = await listSections(id);
+//       console.log("섹션 목록:", rawSections);
+
+//       const attachContentsToStep = async (step) => {
+//         const contents = await listStepContents(step.stepId);
+//         return { ...step, stepContents: contents };
+//       };
+
+         
+//        const attachStepsToSection = async (sec) => {
+//         const steps = await listSteps(sec.sectionId);
+//         //스텝배열
+//         const stepsWithContents = await Promise.all(
+//           steps.map(attachContentsToStep)
+//         );
+//         return { ...sec, steps: stepsWithContents };
+//       };
+   
+//       // 3) 섹션 → 스텝 → 콘텐츠까지 합치기
+//       //섹샨배열
+//       const fullSections = await Promise.all(
+//         rawSections.map(attachStepsToSection)
+//       );
+
+//       setSections(fullSections);
+//     } catch (e) {
+//       console.error("로드맵 상세 불러오기 실패", e);
+//     } finally {
+//       setLoading(false);
+//     }
+//   })();
+// }, [id]);
+
+useEffect(() => {
+  if (!id) return;
+
+  (async () => {
+    try {
+      setLoading(true);
+
+      // 1) 로드맵
+      const rm = await getRoadmap(id);
+      console.log("[로드맵]", rm);
+      setRoadmap(rm);
+
+      // 2) 섹션 목록
+      const rawSections = await listSections(id);
+      console.log(`[섹션목록] ${rawSections.length}개`, rawSections);
+
+      // ── 헬퍼: 스텝 1개 → 콘텐츠 붙이기
+      const attachContentsToStep = async (step) => {
+        console.groupCollapsed(`step ${step.stepId} 불러오기 시작`);
+        try {
+          console.log("원본 step:", step);
+          const contents = await listStepContents(step.stepId);
+          console.log(`step ${step.stepId}의 contents ${contents.length}개`, contents);
+          const enriched = { ...step, stepContents: contents };
+          console.log("enriched step:", enriched);
+          return enriched;
+        } catch (err) {
+          console.error(`step ${step.stepId} 로딩 실패`, err);
+          throw err;
+        } finally {
+          console.groupEnd();
+        }
+      };
+
+      // ── 헬퍼: 섹션 1개 → 스텝(+콘텐츠) 붙이기
+      const attachStepsToSection = async (sec) => {
+        console.groupCollapsed(`section ${sec.sectionId} 불러오기 시작`);
+        try {
+          console.log("원본 section:", sec);
+          const steps = await listSteps(sec.sectionId);
+          console.log(`section ${sec.sectionId}의 steps ${steps.length}개`, steps);
+
+          const t0 = performance.now();
+          const stepsWithContents = await Promise.all(steps.map(attachContentsToStep));
+          const t1 = performance.now();
+          console.log(
+            `section ${sec.sectionId} 스텝 콘텐츠 결합 완료 (±${Math.round(t1 - t0)}ms)`,
+            stepsWithContents
+          );
+
+          const enriched = { ...sec, steps: stepsWithContents };
+          console.log("enriched section:", enriched);
+          return enriched;
+        } catch (err) {
+          console.error(`section ${sec.sectionId} 로딩 실패`, err);
+          throw err;
+        } finally {
+          console.groupEnd();
+        }
+      };
+
+      // 3) 섹션 배열 → 모두 결합
+      const tAll0 = performance.now();
+      const fullSections = await Promise.all(rawSections.map(attachStepsToSection));
+      const tAll1 = performance.now();
+
+      // Promise.all은 입력 순서를 보존합니다 → rawSections 순서 == fullSections 순서
+      console.log(
+        `[최종 섹션] ${fullSections.length}개 (총 ${Math.round(tAll1 - tAll0)}ms)`,
+        fullSections
+      );
+      // 빠른 표 형태 확인
+      console.table(
+        fullSections.map(s => ({
+          sectionId: s.sectionId,
+          title: s.title,
+          stepCount: s.steps?.length ?? 0
+        }))
+      );
+
+      setSections(fullSections);
+    } catch (e) {
+      console.error("로드맵 상세 불러오기 실패", e);
+    } finally {
+      setLoading(false);
     }
-  }, [id]);
+  })();
+}, [id]);
 
-  const handleDeletePost = () => { 
-    const roadmaps = JSON.parse(localStorage.getItem("roadmaps")) || [];
-    const postId = Number(id);
-    
-    if(postId >=0 && postId < roadmaps.length){
-      roadmaps.splice(postId,1);
-      localStorage.setItem("roadmaps",JSON.stringify(roadmaps));
-      alert("로드맵이 삭제되었습니다");
-      navigate("/");
 
-    }else {
-      alert("오루가 발생하였습니다")
+
+
+  // 로드맵 삭제
+  const handleDeletePost = () => {
+    // 실제 API deleteRoadmap(id) 연결 필요
+    alert("로드맵이 삭제되었습니다");
+    navigate("/");
+  };
+
+  // 좋아요 토글
+  const handleLike = async () => {
+    try {
+      if (likeState) {
+        await removeLike(id);
+        console.log(id);
+        setRoadmap((prev) => ({ ...prev, likeCount: prev.likeCount - 1 }));
+      } else {
+        await addLike(id);
+        setRoadmap((prev) => ({ ...prev, likeCount: prev.likeCount + 1 }));
+      }
+      setLikeState((prev) => !prev);
+    } catch (err) {
+      console.error("좋아요 실패", err);
     }
   };
-    
-  const handleLike = () => setLikeState((prev) => !prev);
 
-  const handleComment = () => {
+  // 북마크 토글
+  const handleBookmark = async () => {
+    try {
+      if (bookmark) {
+        await removeBookmark(id);
+        setRoadmap((prev) => ({...prev,bookmarkCount: prev.bookmarkCount - 1, }));
+      } else {
+        await addBookmark(id);
+        setRoadmap((prev) => ({...prev,bookmarkCount: prev.bookmarkCount + 1,}));
+      }
+      setBookmark((prev) => !prev);
+    } catch (err) {
+      console.error("북마크 실패", err);
+    }
+  };
+
+  // 댓글 작성
+  const handleComment = async () => {
     if (commentState.trim() === "") return;
-    setComments((prev) => [
-      ...prev,
-      {
-        user: nickname || "익명",
-        text: commentState,
-        img: profileImg || "/default_profile.png",
-        likes: 0,
-        liked: false,
-        replies: [],
-      },
-    ]);
-    setCommentState("");
+    try {
+      const newComment = await addComment(id, commentState);
+      setComments((prev) => [...prev, newComment]);
+      setCommentState("");
+    } catch (err) {
+      console.error("댓글 등록 실패", err);
+    }
   };
 
-  const handleDeleteComment = (index) => {
-    setComments((prev) => prev.filter((_, idx) => idx !== index));
+  // 댓글 삭제
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await deleteComment(commentId);
+      setComments((prev) => prev.filter((c) => c.commentId !== commentId));
+    } catch (err) {
+      console.error("댓글 삭제 실패", err);
+    }
   };
 
-  const handleLikeComment = (index) => {
-    setComments((prev) =>
-      prev.map((comment, idx) =>
-        idx === index
-          ? {
-              ...comment,
-              liked: !comment.liked,
-              likes: comment.liked ? comment.likes - 1 : comment.likes + 1,
-            }
-          : comment
-      )
-    );
+  // 댓글 좋아요
+  const handleLikeComment = async (commentId) => {
+    try {
+      const updated = await likeComment(commentId);
+      setComments((prev) =>
+        prev.map((c) => (c.commentId === commentId ? updated : c))
+      );
+    } catch (err) {
+      console.error("댓글 좋아요 실패", err);
+    }
   };
 
-  const handleReply = (index) => {
+  // 답글 작성
+  const handleReply = async (commentId) => {
     if (replyState.trim() === "") return;
-    setComments((prev) =>
-      prev.map((comment, idx) =>
-        idx === index
-          ? {
-              ...comment,
-              replies: [
-                ...comment.replies,
-                {
-                  user: nickname || "익명",
-                  text: replyState,
-                },
-              ],
-            }
-          : comment
-      )
-    );
-    setReplyState("");
-    setReplyTarget(null);
+    try {
+      const newReply = await replyComment(commentId, replyState);
+      setComments((prev) =>
+        prev.map((c) =>
+          c.commentId === commentId
+            ? { ...c, replies: [...c.replies, newReply] }
+            : c
+        )
+      );
+      setReplyState("");
+      setReplyTarget(null);
+    } catch (err) {
+      console.error("답글 실패", err);
+    }
   };
 
-  const handleBookmark = () => { setBookmark(prev=> !prev);};
-
-  return (
+return (
     <>
       <TopHeader nickname={nickname} />
-     
-      <Container>
       
-       {roadmap?.author === nickname && (
-         <ContainerButton>
-           <BookmarkButton onClick={handleBookmark}>
-          {bookmark ? <FaBookmark /> : <FaRegBookmark />}북마크</BookmarkButton>
-          <DeleteContainer>
-        <DeleteButton onClick={handleDeletePost}>삭제</DeleteButton>
-        <UpdateButton onClick={()=>navigate(`/edit/${id}`)}>수정</UpdateButton>
-         </DeleteContainer>
-  
-      </ContainerButton>
-       )}
-       
-      
-        <AllContainer>
-          <Title>{roadmap?.title || "제목 없음"}</Title>
-          {roadmap?.category && <CategoryPath>{roadmap.category}</CategoryPath>}
-          <Author>작성자 : {roadmap?.author || "익명"}</Author>
-          <Description>{roadmap?.description || "설명 없음"}</Description>
-        </AllContainer>
+        {/* 수정/삭제 버튼 */}
+        
 
+      <Container>
+        <ContainerButton>
+          <DeleteContainer>
+            <UpdateButton onClick={() => navigate(`/edit/${id}`)}>수정</UpdateButton>
+            <DeleteButton onClick={handleDeletePost}>삭제</DeleteButton>
+          </DeleteContainer>
+          <BookmarkButton onClick={handleBookmark}>
+            {bookmark ? <FaBookmark /> : <FaRegBookmark />} 북마크
+          </BookmarkButton>
+        </ContainerButton>
+
+
+        {/* 로드맵 정보 */}
+        {roadmap && (
+          <AllContainer>
+            <Title>{roadmap.title}</Title>
+            <CategoryPath>{roadmap.category}</CategoryPath>
+            <Description>{roadmap.description}</Description>
+            <Author>작성자: {roadmap.authorNickname}</Author>
+            <p>좋아요: {roadmap.likeCount}, 북마크: {roadmap.bookmarkCount}</p>
+          </AllContainer>
+        )}
+
+        {/* 좋아요 버튼 */}
+        <LikeContainer onClick={handleLike}>
+          {likeState ? <FaHeart /> : <FaRegHeart />}
+          <span style={{ marginLeft: "8px" }}>좋아요</span>
+        </LikeContainer>
+
+        {/* 레벨/스텝/체크리스트 */}
         <LevelsContainer>
-          {roadmap?.levels?.map((level, idx) => (
-            <LevelBlock key={idx}>
-              <LevelTitle>Lv.{idx + 1}</LevelTitle>
+          {sections.map((sec) => (
+            <LevelBlock key={sec.sectionId}>
+              <LevelTitle>
+                Lv.{sec.sectionNum} {sec.title}
+              </LevelTitle>
+
               <StepContainer>
-                {level.steps.map((step, stepIdx) => (
-                  <StepBox key={stepIdx}>
-                    <StepTitle>{step.title || "제목 없음"}</StepTitle>
-                    {step.checklist.map((item, itemIdx) => (
-                      <ChecklistItem key={itemIdx}>
-                        <input type="checkbox" disabled />
-                        <span>{item || "체크리스트 없음"}</span>
+                {sec.steps.map((step) => (
+                  <StepBox key={step.stepId}>
+                    <StepTitle>{step.title}</StepTitle>
+                    {step.stepContents.map((c) => (
+                      <ChecklistItem key={c.stepContentId}>
+                        <input type="checkbox" checked={c.finished} readOnly />{" "}
+                        {c.content}
                       </ChecklistItem>
                     ))}
                   </StepBox>
@@ -455,75 +624,58 @@ function RoadmapDetail() {
           ))}
         </LevelsContainer>
 
+        {/* 댓글 입력 */}
         <BottomContainer>
-          <LikeContainer onClick={handleLike}>
-            {likeState ? "♥ 좋아요" : "♡ 좋아요"}
-          </LikeContainer>
-
           <CommentContainer>
             <CommentInput
-              type="text"
-              placeholder="댓글을 입력해주세요"
               value={commentState}
               onChange={(e) => setCommentState(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleComment();
-                }
-              }}
+              placeholder="댓글을 입력하세요..."
             />
-            <CommentButton onClick={handleComment}>입력</CommentButton>
+            <CommentButton onClick={handleComment}>등록</CommentButton>
           </CommentContainer>
 
+          {/* 댓글 목록 */}
           <CommentList>
-            {comments.map((comment, idx) => (
-              <div key={idx}>
-                <CommentDetail>
-                  <CommentImg src={comment.img} alt="profile" />
-                  <CommentText>
-                    <CommentName>{comment.user}</CommentName>
-                    {comment.text}
-                    <CommentActions>
-                      <span onClick={() => handleLikeComment(idx)}>
-                        {comment.liked ? <FaHeart color="red" /> : <FaRegHeart />}{" "}
-                        {comment.likes}
-                      </span>
-                      <span onClick={() => setReplyTarget(idx)}>
-                        <FaReply /> 대댓글
-                      </span>
-                      <span onClick={() => handleDeleteComment(idx)}>
-                        <FaTrash /> 삭제
-                      </span>
-                    </CommentActions>
-                  </CommentText>
-                </CommentDetail>
+            {comments.map((c, idx) => (
+              <CommentDetail key={idx}>
+                <CommentImg src={c.img} alt="profile" />
+                <CommentText>
+                  <CommentName>{c.user}</CommentName>
+                  <span>{c.text}</span>
+                  <CommentActions>
+                    <span onClick={() => handleLikeComment(idx)}>
+                      {c.liked ? <FaHeart /> : <FaRegHeart />} {c.likes}
+                    </span>
+                    <span onClick={() => setReplyTarget(idx)}>
+                      <FaReply /> 답글
+                    </span>
+                    <span onClick={() => handleDeleteComment(idx)}>
+                      <FaTrash /> 삭제
+                    </span>
+                  </CommentActions>
 
-                {replyTarget === idx && (
-                  <ReplyContainer>
-                    <CommentInput
-                      type="text"
-                      placeholder="대댓글 입력"
-                      value={replyState}
-                      onChange={(e) => setReplyState(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleReply(idx);
-                        }
-                      }}
-                    />
-                    <CommentButton onClick={() => handleReply(idx)}>작성</CommentButton>
-                  </ReplyContainer>
-                )}
+                  {/* 답글 입력 */}
+                  {replyTarget === idx && (
+                    <ReplyContainer>
+                      <CommentInput
+                        value={replyState}
+                        onChange={(e) => setReplyState(e.target.value)}
+                        placeholder="답글 입력..."
+                      />
+                      <CommentButton onClick={() => handleReply(idx)}>등록</CommentButton>
+                    </ReplyContainer>
+                  )}
 
-                {comment.replies.map((reply, rIdx) => (
-                  <ReplyItem key={rIdx}>
-                    <ReplyName>{reply.user}</ReplyName>
-                    <ReplyText>{reply.text}</ReplyText>
-                  </ReplyItem>
-                ))}
-              </div>
+                  {/* 답글 목록 */}
+                  {c.replies.map((r, ridx) => (
+                    <ReplyItem key={ridx}>
+                      <ReplyName>{r.user}</ReplyName>
+                      <ReplyText>{r.text}</ReplyText>
+                    </ReplyItem>
+                  ))}
+                </CommentText>
+              </CommentDetail>
             ))}
           </CommentList>
         </BottomContainer>
@@ -531,5 +683,4 @@ function RoadmapDetail() {
     </>
   );
 }
-
 export default RoadmapDetail;

@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useCallback, useRef  } from "react";
+// src/components/TopHeader.jsx
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import { FaBell } from "react-icons/fa";
 import Logo from "../components/Logo";
-import { useLocation } from "react-router-dom";
-import { fetchUnread } from "../api/notification";
-import {searchAll} from "../api/search";
+import { FaBell } from "react-icons/fa";
+import { getUserById } from "../api/users";   // 파일명이 user.js면 경로 맞춰주세요
+import { fetchUnread } from "../api/notification"; // ✅ 종 아이콘에 쓸 미읽음 알림 API
 
+/* --- styled components --- */
 const HeaderContainer = styled.div`
   display: flex;
   align-items: center;
@@ -17,6 +18,9 @@ const HeaderContainer = styled.div`
   background-color: #fafdfb;
   position: fixed;
   width: 100%;
+  top: 0;
+  left: 0;
+  z-index: 10;
 `;
 
 const Menu = styled.div`
@@ -25,93 +29,68 @@ const Menu = styled.div`
   gap: 20px;
 `;
 
-const Option = styled.p`
+const Option = styled.button`
   font-size: 15px;
   color: black;
   cursor: pointer;
   font-weight: bold;
-  &:hover {
-    font-size: 17px;
-  }
+  background: none;
+  border: none;
+  padding: 0;
+  &:hover { font-size: 17px; }
+`;
+
+const SearchForm = styled.form`
+  margin-left: 20px;
 `;
 
 const SearchInput = styled.input`
   border-radius: 20px;
   background: white;
-  width: 500px;
+  width: 300px;
   height: 30px;
   font-size: 12px;
   border: 1px solid black;
-  padding-left: 12px;
-  &:focus::placeholder {
-    color: transparent;
-  }
-`;
-const SearchWrap = styled.div`
-  position: relative; /* 드롭다운 위치 기준 */
+  padding: 0 12px;
 `;
 
-const ResultBox = styled.div`
-  position: absolute;
-  top: 36px;
-  left: 0;
-  width: 500px;
-  background: #fff;
-  border: 1px solid #c3d4ce;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-  z-index: 20;
-  max-height: 360px;
-  overflow-y: auto;
-`;
-
-const SectionTitle = styled.div`
-  font-weight: bold;
-  font-size: 12px;
-  color: #2e5c4d;
-  padding: 8px 10px 4px;
-  border-top: 1px solid #eef2f0;
-  &:first-child { border-top: none; }
-`;
-
-const Item = styled.button`
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: none;
-  padding: 10px;
-  font-size: 14px;
-  cursor: pointer;
-  &:hover { background: #f6faf8; }
-`;
-
-const LoginMenu = styled.div`
+const Right = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
   margin-right: 30px;
 `;
 
-const UserNickname = styled.button`
+const NicknameBtn = styled.button`
   font-size: 15px;
-  margin: 0;
+  font-weight: bold;
   border: none;
   background: none;
   cursor: pointer;
-  font-weight: bold;
-  &:hover {
-    text-decoration: underline;
-  }
-  display: flex;
-  margin-left: 30px;
 `;
 
-const WelcomeText = styled.p`
-  font-size: 15px;
-  margin: 0;
-  display: flex;
+/* ✅ 종 아이콘 & 배지 */
+const NoticeBell = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  padding: 6px;
+`;
+
+const NoticeNum = styled.span`
+  position: absolute;
+  top: -4px;
+  right: -2px;
+  background: red;
+  color: white;
+  border-radius: 9999px;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 6px;
 `;
 
 const LoginButton = styled.button`
@@ -121,116 +100,66 @@ const LoginButton = styled.button`
   background: #2e5c4d;
   border: none;
   border-radius: 30px;
-  height: 45px;
+  height: 40px;
   width: 80px;
-  &:hover {
-    font-weight: bold;
-    background: #24493d;
-  }
+  &:hover { font-weight: bold; background: #24493d; }
 `;
 
-const NoticeBell = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  position: relative;
-`;
-
-const NoticeNum = styled.span`
-  border-radius: 50%;
-  position: absolute;
-  top: -5px;
-  right: -2px;
-  background: red;
-  color: white;
-  font-size: 7px;
-  padding: 2px 5px;
-`;
-
-function TopHeader({ nickname }) {
+/* --- component --- */
+function TopHeader() {
   const navigate = useNavigate();
-  const location = useLocation();
-
-  // 로그인 상태 읽기
-  const readAuth  = useCallback(() => localStorage.getItem("auth") === "true", []);
-  const readName  = useCallback(() => localStorage.getItem("nickname") || nickname || "", [nickname]);
-
-  const [isAuthed, setIsAuthed] = useState(() => readAuth());
-  const [displayName, setDisplayName] = useState(() => readName());
-  const [noticeCount, setNoticeCount] = useState(0);
-
-  // 검색 상태
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [nickname, setNickname] = useState("");
   const [q, setQ] = useState("");
-  const [results, setResults] = useState({ users: [], roadmaps: [] });
-  const [open, setOpen] = useState(false);
-  const boxRef = useRef(null);
-  const timerRef = useRef(null);
-
-  /* --- 검색 --- */
+  const [noticeCount, setNoticeCount] = useState(0); // ✅ 미읽음 개수
+  // 🔹 로그인 상태/닉네임 동기화
   useEffect(() => {
-    clearTimeout(timerRef.current);
-    if (!q.trim()) {
-      setResults({ users: [], roadmaps: [] });
-      return;
-    }
-    timerRef.current = setTimeout(async () => {
-      try {
-        const data = await searchAll(q.trim());
-        setResults({ users: data?.users ?? [], roadmaps: data?.roadmaps ?? [] });
-        setOpen(true);
-      } catch {
-        setResults({ users: [], roadmaps: [] });
-        setOpen(false);
+    const sync = async () => {
+      const uid = localStorage.getItem("userId");
+      const savedNick = localStorage.getItem("nickname") || "";
+      setIsAuthed(!!uid);
+      if (savedNick) setNickname(savedNick);
+
+      // 저장된 닉이 없으면 서버에서 1회 조회해서 캐시
+      if (uid && !savedNick) {
+        try {
+          const me = await getUserById(uid);  // 쿠키 기반 인증으로 동작
+          const nn = me?.nickName;
+          if (nn) {
+            setNickname(nn);
+            localStorage.setItem("nickname", nn);
+          }
+        } catch {/* 무시 */}
       }
-    }, 300);
-    return () => clearTimeout(timerRef.current);
-  }, [q]);
-
-  // 외부 클릭 시 닫기
-  useEffect(() => {
-    const onDocClick = (e) => {
-      if (!boxRef.current) return;
-      if (!boxRef.current.contains(e.target)) setOpen(false);
     };
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    sync();
+    // 로그인/로그아웃 시 즉시 갱신
+    window.addEventListener("auth-change", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("auth-change", sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
 
-  /* --- 로그인 상태/닉네임 감지 --- */
-  useEffect(() => {
-    const handler = () => {
-      setIsAuthed(readAuth());
-      setDisplayName(readName());
-    };
-    window.addEventListener("auth-change", handler);
-    window.addEventListener("storage", handler);
-    return () => {
-      window.removeEventListener("auth-change", handler);
-      window.removeEventListener("storage", handler);
-    };
-  }, [readAuth, readName]);
-
-  useEffect(() => {
-    setIsAuthed(readAuth());
-    setDisplayName(readName());
-  }, [location.pathname, readAuth, readName]);
-
-  /* --- 알림 개수 --- */
+  // ✅ 미읽음 알림 개수 폴링 (30초 간격)
   useEffect(() => {
     let timer;
-    const load = async () => {
-      if (!readAuth()) { setNoticeCount(0); return; }
+    const loadUnread = async () => {
+      if (!isAuthed) { setNoticeCount(0); return; }
       try {
-        const unread = await fetchUnread();
-        setNoticeCount(Array.isArray(unread) ? unread.length : 0);
-      } catch { setNoticeCount(0); }
+        const unread = await fetchUnread(); // 배열 또는 숫자라면 프로젝트에 맞게 조정
+        const count = Array.isArray(unread) ? unread.length : Number(unread) || 0;
+        setNoticeCount(count);
+      } catch (e) {
+        setNoticeCount(0);
+      }
     };
-    load();
-    timer = setInterval(load, 30000);
+    loadUnread();
+    timer = setInterval(loadUnread, 30000);
     return () => clearInterval(timer);
-  }, [location.pathname]);
+  }, [isAuthed]);
 
-  /* --- 공통 함수 --- */
   const goOrAskLogin = (path) => {
     if (!isAuthed) {
       alert("로그인이 필요합니다!");
@@ -242,12 +171,11 @@ function TopHeader({ nickname }) {
 
   const onSubmitSearch = (e) => {
     e.preventDefault();
-    if (!q.trim()) return;
-    navigate(`/?query=${encodeURIComponent(q.trim())}`);
-    setOpen(false);
+    const keyword = q.trim();
+    if (!keyword) return;
+    navigate(`/?query=${encodeURIComponent(keyword)}`);
   };
 
-  /* --- JSX --- */
   return (
     <HeaderContainer>
       <Menu>
@@ -256,64 +184,31 @@ function TopHeader({ nickname }) {
         <Option onClick={() => goOrAskLogin("/mypage")}>나의 로드맵</Option>
         <Option onClick={() => goOrAskLogin("/newfeed")}>로드맵 만들기</Option>
 
-        {/* 검색 */}
-        <SearchWrap ref={boxRef}>
-          <form onSubmit={onSubmitSearch}>
-            <SearchInput
-              placeholder="🔍 검색"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onFocus={() => {
-                if (results.users?.length || results.roadmaps?.length) setOpen(true);
-              }}
-            />
-          </form>
-
-          {open && (results.users?.length || results.roadmaps?.length) ? (
-            <ResultBox>
-              {results.users?.length > 0 && (
-                <>
-                  <SectionTitle>사용자</SectionTitle>
-                  {results.users.map((u) => (
-                    <Item key={`u-${u.userId}`}
-                      onClick={() => { navigate(`/user/${u.userId}`); setOpen(false); }}>
-                      {u.nickname} (ID: {u.userId})
-                    </Item>
-                  ))}
-                </>
-              )}
-              {results.roadmaps?.length > 0 && (
-                <>
-                  <SectionTitle>로드맵</SectionTitle>
-                  {results.roadmaps.map((r) => (
-                    <Item key={`r-${r.roadmapId}`}
-                      onClick={() => { navigate(`/roadmap/${r.roadmapId}`); setOpen(false); }}>
-                      {r.title}
-                    </Item>
-                  ))}
-                </>
-              )}
-            </ResultBox>
-          ) : null}
-        </SearchWrap>
+        <SearchForm onSubmit={onSubmitSearch}>
+          <SearchInput
+            placeholder="🔍 검색어를 입력하세요"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </SearchForm>
       </Menu>
 
-      <LoginMenu>
+      <Right>
         {isAuthed ? (
-          <WelcomeText>
-            <UserNickname onClick={() => navigate("/myinfo")}>
-              {displayName}
-            </UserNickname>
-            님 환영합니다!
-            <NoticeBell onClick={() => goOrAskLogin("/noticepage")}>
+          <>
+            <NicknameBtn onClick={() => navigate("/myinfo")}>
+              {nickname} 님 환영합니다
+            </NicknameBtn>
+
+            <NoticeBell onClick={() => goOrAskLogin("/NoticePage")} aria-label="알림">
               <FaBell size={18} />
               {noticeCount > 0 && <NoticeNum>{noticeCount}</NoticeNum>}
             </NoticeBell>
-          </WelcomeText>
+          </>
         ) : (
           <LoginButton onClick={() => navigate("/login")}>로그인</LoginButton>
         )}
-      </LoginMenu>
+      </Right>
     </HeaderContainer>
   );
 }

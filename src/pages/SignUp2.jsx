@@ -127,7 +127,9 @@ function SignUp2() {
      //userId는 서버 아이디 res객체가 있으면 그안의 userId속성을 꺼내옴
       alert(`회원가입 성공! (id: ${res?.userId ?? "?"})`);
       navigate("/login");
+      
     } catch (e) {
+      console.log(e)
       alert("회원가입 실패. 콘솔/네트워크 탭을 확인하세요.");
     }
   };

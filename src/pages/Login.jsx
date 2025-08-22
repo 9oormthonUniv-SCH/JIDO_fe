@@ -1,8 +1,8 @@
+// src/pages/Login.jsx
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { login } from "../api/auth";
-import api from "../api/client";
 
 const Container = styled.div`
   display:flex;
@@ -11,7 +11,6 @@ const Container = styled.div`
   justify-content:center;
   background-color:#fafdfb;
 `;
-
 const Logo = styled.h1`
   font-size:32px;
   font-weight:bold;
@@ -20,22 +19,18 @@ const Logo = styled.h1`
   cursor:pointer;
   margin-top:80px;
 `;
-
 const Title = styled.h2`
   font-size:24px;
   font-weight:bold;
   color:#2e5c4d;
   margin-bottom:30px;
 `;
-
 const LoginContainer = styled.form`
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 400px;
 `;
-
-
 const Label=styled.label`
   font-weight:bold;
   margin-bottom:6px;
@@ -43,7 +38,6 @@ const Label=styled.label`
   color:black;
   display: block;  
 `;
-
 const Input = styled.input`
   height:38px;
   border-radius:8px;
@@ -53,7 +47,6 @@ const Input = styled.input`
   outline:none;
   &:focus{border: 2px solid #2e5c4d;}
 `;
-
 const Button = styled.button`
   width:100%;
   background-color:#2e5c4d;
@@ -66,7 +59,6 @@ const Button = styled.button`
   cursor:pointer;
   &:hover{background-color:#24493d;}
 `;
-
 const SignupMentCon = styled.div`
   display:flex;
   align-items:center;
@@ -74,7 +66,6 @@ const SignupMentCon = styled.div`
   font-size:14px;
   color: #616564ff;
 `;
-
 const SignupLink = styled.p`
   color:#2e5c4d;
   font-weight:bold;
@@ -89,47 +80,42 @@ function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading]   = useState(false);
 
+  const handleSubmit = async (e) => {
+    console.log("submit");
+    e.preventDefault();
+    if (!userLoginId || !password) return alert("아이디와 비밀번호를 입력하세요.");
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!userLoginId || !password) return alert("아이디와 비밀번호를 입력하세요.");
+    try {
+      setLoading(true);
 
-  try {
-    setLoading(true);
+      // 서버 호출
+     const res = await login({ username: userLoginId, password });
+     console.log(res);
+     const userId = Number(res?.userId ?? res?.id);
+    if (!userId) throw new Error("아이디 또는 비밀번호가 올바르지 않습니다.");
 
-    // 로그인 API 호출
-    const res = await login({ username: userLoginId, password });
-    const data = res?.data ?? res; // axios wrapper 방어
-    
-    let token =
-      data?.accessToken ||
-      data?.token ||
-      (res?.headers?.authorization?.startsWith("Bearer ")
-        ? res.headers.authorization.split(" ")[1]
-        : "");
 
-    if (!token) {
-      console.warn("로그인 응답에 accessToken이 없습니다. 백엔드 확인 필요.");
-    } else {
-      localStorage.setItem("accessToken", token); // ★ 인터셉터가 자동으로 사용
+    //응답값에 닉네임이없어서 아이디로 로그인
+    const nickname = res?.nickName ?? res?.nickname ?? userLoginId;
+    localStorage.setItem("userId", String(userId));   // UI용
+    localStorage.setItem("nickname", nickname);
+    console.log(nickname);
+
+
+// (선택) 헤더 같은 곳에서 즉시 반영하려면 이벤트 한번 쏘기
+window.dispatchEvent(new Event("auth-change"));
+
+navigate("/");
+    } catch (err) {
+      console.error(err?.response || err);
+
+      alert(err?.message || "로그인 실패. 아이디/비밀번호를 확인하세요.");
+    } finally {
+      setLoading(false);
     }
+    
+  };
 
-     // 2) 사용자 정보 저장(서버가 주는 키에 맞춰 세팅)
-    if (data?.id) localStorage.setItem("userId", String(data.id));
-    if (data?.nickname || userLoginId)
-      localStorage.setItem("nickname", data?.nickname || userLoginId);
-
-    localStorage.setItem("auth", "true");
-    window.dispatchEvent(new Event("auth-change"));
-
-    navigate("/");
-  } catch (err) {
-    console.error(err?.response || err);
-    alert("로그인 실패. 아이디/비밀번호를 확인하세요.");
-  } finally {
-    setLoading(false);
-  }
-};
   return (
     <Container>
       <Logo onClick={() => navigate("/")}>JIDO</Logo>

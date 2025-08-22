@@ -3,24 +3,33 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: "/api", // 프록시 사용 중이면 /api
+   withCredentials: true,
+   xsrfCookieName: "XSRF-TOKEN",    // ★ 스프링 기본
+  xsrfHeaderName: "X-XSRF-TOKEN",  // ★ 스프링 기본
+  timeout: 15000,
 });
 
-//confing는 서버에 보낼 요청 패키지
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken"); // 로그인 시 저장
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  // 디버그 로그
-  console.log("[REQ]", config.method?.toUpperCase(), config.url, {
-    hasAuth: !!token,
-    authHeader: config.headers.Authorization,
+// (선택) 요청/응답 로그만 남기고, 헤더 주입은 안 한다
+if (import.meta.env.DEV) {
+  api.interceptors.request.use((config) => {
+    console.log("[REQ]", config.method?.toUpperCase(), config.url);
+    return config;
   });
-  return config;
-});
+}
+
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    const { config, response } = err || {};
+    console.log("[RES ERR]", config?.method?.toUpperCase(), config?.url, {
+      status: response?.status,
+      data: response?.data,
+    });
+    return Promise.reject(err);
+  }
+);
 
 export default api;
-
 
 // src/api/client.js
 

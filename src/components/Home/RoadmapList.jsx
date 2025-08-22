@@ -66,15 +66,17 @@ function RoadmapList({ selectedCategory, filteredRoadmaps, handleCardClick }) {
       <RoadmapContainer>
         {filteredRoadmaps.length > 0 ? (
           filteredRoadmaps.map((roadmap, idx) => (
-            <RoadmapCard key={idx} onClick={() => handleCardClick(idx)}>
+           <RoadmapCard key={roadmap.roadmapId} onClick={() => handleCardClick(roadmap.roadmapId)}>
+
               <CardHeader>
                 <RoadmapTitle>{roadmap.title}</RoadmapTitle>
-                <RoadmapAuthor>by. {roadmap.author}</RoadmapAuthor>
+                <RoadmapAuthor>by. {roadmap.authorNickname}</RoadmapAuthor>
               </CardHeader>
-              <CardBottom>
-                <IconText>좋아요 {roadmap.likes || 0}</IconText>
-                <IconText>북마크 {roadmap.scraps || 0}</IconText>
-              </CardBottom>
+             <CardBottom>
+             <IconText>좋아요 {roadmap.likeCount ?? 0}</IconText>
+             <IconText>북마크 {roadmap.bookmarkCount ?? 0}</IconText>
+             </CardBottom>
+
             </RoadmapCard>
           ))
         ) : (
