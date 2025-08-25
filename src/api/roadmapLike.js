@@ -30,3 +30,19 @@ export async function removeBookmark(roadmapId) {
   const res = await api.delete(`/roadmaps/${roadmapId}/bookmark`);
   return res.data;
 }
+
+// 좋아요 현재 상태 조회
+export async function fetchLikeStatus(roadmapId) {
+  const { data } = await api.get(`/roadmaps/${roadmapId}/like`, {
+    withCredentials: true,
+  });
+  return data; // { liked, likeCount }
+}
+
+// 북마크 현재 상태 조회
+export async function fetchBookmarkStatus(roadmapId) {
+  const { data } = await api.get(`/roadmaps/${roadmapId}/bookmark`, {
+    withCredentials: true,
+  });
+  return data; // { bookmarked, bookmarkCount }
+}

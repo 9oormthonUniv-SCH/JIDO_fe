@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaHeart, FaRegHeart, FaReply, FaTrash, FaBookmark,FaRegBookmark} from "react-icons/fa";
 import {getRoadmapDetail,} from "../api/roadmap";
-import {addLike, removeLike, addBookmark, removeBookmark,} from "../api/roadmapLike";
+import {addLike, removeLike, addBookmark, removeBookmark, fetchLikeStatus, fetchBookmarkStatus ,} from "../api/roadmapLike";
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -311,257 +311,239 @@ const StepBox = styled.div`
 `;
 
 function RoadmapDetail() {
-  const { id } = useParams(); // URL의 roadmapId
-
-
+  const { id } = useParams();
   const navigate = useNavigate();
 
-  const userId = localStorage.getItem("userId"); // 로그인 시 저장해둔 userId
-  console.log(userId);
+  const userId = localStorage.getItem("userId");
 
   const [roadmap, setRoadmap] = useState(null);
   const [sections, setSections] = useState([]);
   const [nickname, setNickname] = useState("");
-  const [bookmark, setBookmark] = useState(false);
+
   const [likeState, setLikeState] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+
+  const [bookmark, setBookmark] = useState(false);
+  const [bookmarkCount, setBookmarkCount] = useState(0);
+
   const [comments, setComments] = useState([]);
   const [commentState, setCommentState] = useState("");
-
   const [replyState, setReplyState] = useState("");
   const [replyTarget, setReplyTarget] = useState(null);
+
   const [loading, setLoading] = useState(false);
 
-// useEffect(() => {
-//   if (!id) return; // id 없으면 중단
-//   console.log(id);
+  // 연타 방지
+  const [likeBusy, setLikeBusy] = useState(false);
+  const [bookmarkBusy, setBookmarkBusy] = useState(false);
 
-//   (async () => {
-//     try {
-//       setLoading(true);
-
-//       // 1) 로드맵 기본 정보
-//       const rm = await getRoadmap(id);
-//       console.log("로드맵 기본 정보:", rm);
-//       setRoadmap(rm);
-
-//       // 2) 이 로드맵의 섹션들만
-//       const rawSections = await listSections(id);
-//       console.log("섹션 목록:", rawSections);
-
-//       const attachContentsToStep = async (step) => {
-//         const contents = await listStepContents(step.stepId);
-//         return { ...step, stepContents: contents };
-//       };
-
-         
-//        const attachStepsToSection = async (sec) => {
-//         const steps = await listSteps(sec.sectionId);
-//         //스텝배열
-//         const stepsWithContents = await Promise.all(
-//           steps.map(attachContentsToStep)
-//         );
-//         return { ...sec, steps: stepsWithContents };
-//       };
-   
-//       // 3) 섹션 → 스텝 → 콘텐츠까지 합치기
-//       //섹샨배열
-//       const fullSections = await Promise.all(
-//         rawSections.map(attachStepsToSection)
-//       );
-
-//       setSections(fullSections);
-//     } catch (e) {
-//       console.error("로드맵 상세 불러오기 실패", e);
-//     } finally {
-//       setLoading(false);
-//     }
-//   })();
-// }, [id]);
-
-useEffect(() => {
-  if (!id) return;
-
-  (async () => {
+  // 상세 + 좋아요/북마크 상태 동시 동기화
+  const fetchDetail = async (rid) => {
+    setLoading(true);
     try {
-      setLoading(true);
-
-      const rm = await getRoadmapDetail(id);
-      
-      console.log("[로드맵 상세]", rm);
+      const [rm, likeInfo, bmInfo] = await Promise.all([
+        getRoadmapDetail(rid),
+        fetchLikeStatus(rid),
+        fetchBookmarkStatus(rid),
+      ]);
 
       setRoadmap(rm);
-      setSections(rm.sections || []); // detail 응답에 sections가 바로 들어있음
+      setSections(rm.sections || []);
+      setNickname(rm.authorNickname ?? "");
 
-      // 좋아요/북마크 초기 상태도 같이 세팅
-      setLikeState(rm.likedByMe);
-      setBookmark(rm.bookmarkedByMe);
+      setLikeState(!!likeInfo?.liked);
+      setLikeCount(likeInfo?.likeCount ?? rm.likeCount ?? 0);
 
-    } catch (e) {
-      console.error("로드맵 상세 불러오기 실패", e);
+      setBookmark(!!bmInfo?.bookmarked);
+      setBookmarkCount(bmInfo?.bookmarkCount ?? rm.bookmarkCount ?? 0);
     } finally {
       setLoading(false);
     }
-  })();
-}, [id]);
+  };
 
+  // 마운트/ID 변경 시 서버 상태로 동기화
+  useEffect(() => {
+    if (!id) return;
+    const rid = Number(id); // 숫자만 받는 백엔드 대비
+    fetchDetail(rid);
+  }, [id]);
 
-
-
-
-  // 로드맵 삭제
+  // 로드맵 삭제 (필요 시 실제 API로 교체)
   const handleDeletePost = () => {
-    // 실제 API deleteRoadmap(id) 연결 필요
     alert("로드맵이 삭제되었습니다");
     navigate("/");
   };
 
-  // 좋아요 토글
+  // 좋아요 토글 (낙관적 업데이트 + 서버 정답 재확정)
   const handleLike = async () => {
+    if (likeBusy) return;
+    setLikeBusy(true);
+
+    const rid = Number(id);
+    const next = !likeState;
+
+    setLikeState(next);
+    setLikeCount((c) => Math.max(0, c + (next ? 1 : -1)));
+
     try {
-      if (likeState) {
-        await removeLike(id);
-        console.log(id);
-        setRoadmap((prev) => ({ ...prev, likeCount: prev.likeCount - 1 }));
+      if (next) await addLike(rid);
+      else await removeLike(rid);
+
+      const latest = await fetchLikeStatus(rid);
+      setLikeState(!!latest.liked);
+      setLikeCount(latest.likeCount ?? 0);
+    } catch (e) {
+      setLikeState(!next);
+      setLikeCount((c) => Math.max(0, c + (next ? -1 : 1)));
+      if (e?.response?.status === 401) {
+        alert("로그인이 필요합니다.");
+        navigate("/login");
       } else {
-        await addLike(id);
-        setRoadmap((prev) => ({ ...prev, likeCount: prev.likeCount + 1 }));
+        alert("좋아요 처리에 실패했어요. 다시 시도해 주세요.");
+        console.error(e);
       }
-      setLikeState((prev) => !prev);
-    } catch (err) {
-      console.error("좋아요 실패", err);
+    } finally {
+      setLikeBusy(false);
     }
   };
 
-  // 북마크 토글
+  // 북마크 토글 (낙관적 업데이트 + 서버 정답 재확정)
   const handleBookmark = async () => {
+    if (bookmarkBusy) return;
+    setBookmarkBusy(true);
+
+    const rid = Number(id);
+    const next = !bookmark;
+
+    setBookmark(next);
+    setBookmarkCount((c) => Math.max(0, c + (next ? 1 : -1)));
+
     try {
-      if (bookmark) {
-        await removeBookmark(id);
-        setRoadmap((prev) => ({...prev,bookmarkCount: prev.bookmarkCount - 1, }));
+      if (next) await addBookmark(rid);
+      else await removeBookmark(rid);
+
+      const latest = await fetchBookmarkStatus(rid);
+      setBookmark(!!latest.bookmarked);
+      setBookmarkCount(latest.bookmarkCount ?? 0);
+    } catch (e) {
+      setBookmark(!next);
+      setBookmarkCount((c) => Math.max(0, c + (next ? -1 : 1)));
+      if (e?.response?.status === 401) {
+        alert("로그인이 필요합니다.");
+        navigate("/login");
       } else {
-        await addBookmark(id);
-        setRoadmap((prev) => ({...prev,bookmarkCount: prev.bookmarkCount + 1,}));
+        alert("북마크 처리에 실패했어요. 다시 시도해 주세요.");
+        console.error(e);
       }
-      setBookmark((prev) => !prev);
-    } catch (err) {
-      console.error("북마크 실패", err);
+    } finally {
+      setBookmarkBusy(false);
     }
   };
 
-  // 댓글 작성
+  // 댓글 관련 (필요 시 실제 API로 교체)
   const handleComment = async () => {
-    if (commentState.trim() === "") return;
-    try {
-      const newComment = await addComment(id, commentState);
-      setComments((prev) => [...prev, newComment]);
-      setCommentState("");
-    } catch (err) {
-      console.error("댓글 등록 실패", err);
-    }
+    if (!commentState.trim()) return;
+    setComments((prev) => [
+      ...prev,
+      { user: "나", text: commentState, liked: false, likes: 0, replies: [], img: "" },
+    ]);
+    setCommentState("");
+  };
+  const handleDeleteComment = async (idx) => {
+    setComments((prev) => prev.filter((_, i) => i !== idx));
+  };
+  const handleLikeComment = async (idx) => {
+    setComments((prev) =>
+      prev.map((c, i) =>
+        i === idx ? { ...c, liked: !c.liked, likes: c.likes + (c.liked ? -1 : 1) } : c
+      )
+    );
+  };
+  const handleReply = async (idx) => {
+    if (!replyState.trim()) return;
+    setComments((prev) =>
+      prev.map((c, i) =>
+        i === idx ? { ...c, replies: [...c.replies, { user: "나", text: replyState }] } : c
+      )
+    );
+    setReplyState("");
+    setReplyTarget(null);
   };
 
-  // 댓글 삭제
-  const handleDeleteComment = async (commentId) => {
-    try {
-      await deleteComment(commentId);
-      setComments((prev) => prev.filter((c) => c.commentId !== commentId));
-    } catch (err) {
-      console.error("댓글 삭제 실패", err);
-    }
-  };
-
-  // 댓글 좋아요
-  const handleLikeComment = async (commentId) => {
-    try {
-      const updated = await likeComment(commentId);
-      setComments((prev) =>
-        prev.map((c) => (c.commentId === commentId ? updated : c))
-      );
-    } catch (err) {
-      console.error("댓글 좋아요 실패", err);
-    }
-  };
-
-  // 답글 작성
-  const handleReply = async (commentId) => {
-    if (replyState.trim() === "") return;
-    try {
-      const newReply = await replyComment(commentId, replyState);
-      setComments((prev) =>
-        prev.map((c) =>
-          c.commentId === commentId
-            ? { ...c, replies: [...c.replies, newReply] }
-            : c
-        )
-      );
-      setReplyState("");
-      setReplyTarget(null);
-    } catch (err) {
-      console.error("답글 실패", err);
-    }
-  };
-
-return (
+  return (
     <>
-      <TopHeader nickname={nickname} />
-      
-        {/* 수정/삭제 버튼 */}
-        
-
+     <TopHeader
+  nickname={nickname}
+   onLogoClick={() =>
+     navigate("/", {
+       state: {
+         updatedId: Number(id),
+         likeCount,
+         bookmarkCount,
+       },
+     })
+   }
+/>
       <Container>
         <ContainerButton>
           <DeleteContainer>
             <UpdateButton onClick={() => navigate(`/edit/${id}`)}>수정</UpdateButton>
             <DeleteButton onClick={handleDeletePost}>삭제</DeleteButton>
           </DeleteContainer>
-          <BookmarkButton onClick={handleBookmark}>
-            {bookmark ? <FaBookmark /> : <FaRegBookmark />} 북마크
+
+          {/* 북마크 버튼 */}
+          <BookmarkButton
+            onClick={bookmarkBusy ? undefined : handleBookmark}
+            disabled={bookmarkBusy}
+            style={{ opacity: bookmarkBusy ? 0.6 : 1 }}
+          >
+            {bookmark ? <FaBookmark /> : <FaRegBookmark />}{" "}
+            {bookmarkBusy ? "처리중..." : "북마크"}
           </BookmarkButton>
         </ContainerButton>
 
-
-        {/* 로드맵 정보 */}
         {roadmap && (
           <AllContainer>
             <Title>{roadmap.title}</Title>
             <CategoryPath>{roadmap.category}</CategoryPath>
             <Description>{roadmap.description}</Description>
             <Author>작성자: {roadmap.authorNickname}</Author>
-            <p>좋아요: {roadmap.likeCount}, 북마크: {roadmap.bookmarkCount}</p>
+            <p>좋아요: {likeCount}, 북마크: {bookmarkCount}</p>
           </AllContainer>
         )}
 
         {/* 좋아요 버튼 */}
-        <LikeContainer onClick={handleLike}>
+        <LikeContainer
+          onClick={likeBusy ? undefined : handleLike}
+          style={{ opacity: likeBusy ? 0.6 : 1 }}
+        >
           {likeState ? <FaHeart /> : <FaRegHeart />}
-          <span style={{ marginLeft: "8px" }}>좋아요</span>
+          <span style={{ marginLeft: 8 }}>{likeBusy ? "처리중..." : "좋아요"}</span>
         </LikeContainer>
 
         {/* 레벨/스텝/체크리스트 */}
-      <LevelsContainer>
-  {sections.map((sec) => (
-    <LevelBlock key={sec.sectionId}>
-      <LevelTitle>
-        Lv.{sec.sectionNum} {sec.title}
-      </LevelTitle>
+        <LevelsContainer>
+          {sections.map((sec) => (
+            <LevelBlock key={sec.sectionId}>
+              <LevelTitle>
+                Lv.{sec.sectionNum} {sec.title}
+              </LevelTitle>
 
-      <StepContainer>
-        {sec.steps.map((step) => (
-          <StepBox key={step.stepId}>
-            <StepTitle>{step.title}</StepTitle>
-            {step.contents.map((c) => (   // ✅ 여기 이름만 contents
-              <ChecklistItem key={c.stepContentId}>
-                <input type="checkbox" checked={c.finished} readOnly />{" "}
-                {c.content}
-              </ChecklistItem>
-            ))}
-          </StepBox>
-        ))}
-      </StepContainer>
-    </LevelBlock>
-  ))}
-</LevelsContainer>
-
+              <StepContainer>
+                {sec.steps?.map((step) => (
+                  <StepBox key={step.stepId}>
+                    <StepTitle>{step.title}</StepTitle>
+                    {step.contents?.map((c) => (
+                      <ChecklistItem key={c.stepContentId}>
+                        <input type="checkbox" checked={c.finished} readOnly /> {c.content}
+                      </ChecklistItem>
+                    ))}
+                  </StepBox>
+                ))}
+              </StepContainer>
+            </LevelBlock>
+          ))}
+        </LevelsContainer>
 
         {/* 댓글 입력 */}
         <BottomContainer>
@@ -622,4 +604,5 @@ return (
     </>
   );
 }
+
 export default RoadmapDetail;

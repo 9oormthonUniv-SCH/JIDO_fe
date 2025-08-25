@@ -2,12 +2,12 @@
 import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import TopHeader from "../components/TopHeader";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom"; // ✅ useLocation 추가
 import categories from "../data/categories";
 import WelcomeSection from "../components/Home/WelcomeSection";
 import CategorySection from "../components/Home/CategorySection";
 import RoadmapList from "../components/Home/RoadmapList";
-import { listRoadmaps , getRoadmap} from "../api/roadmap";
+import { listRoadmaps } from "../api/roadmap";
 import { searchAll } from "../api/search";
 
 const HomeContainer = styled.div`
@@ -23,35 +23,31 @@ function Home() {
   const [selectedCategory, setSelectedCategory] = useState("전체 로드맵");
 
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ 여기서 location 사용
 
   // ✅ query 파라미터 읽기 + 바꾸기(setSearchParams) 둘 다 사용
   const [params, setSearchParams] = useSearchParams();
   const queryRaw = params.get("query") || "";
   const query = queryRaw.trim().toLowerCase();
 
-  // 초기 데이터 로드
+  // 초기 데이터 로드 (닉네임 캐시)
   useEffect(() => {
     const cachedName = localStorage.getItem("nickname");
     if (cachedName) setNickname(cachedName);
-
-    
   }, []);
 
-   // 2) 검색어에 따라 서버 호출 (검색 있으면 searchAll, 없으면 listRoadmaps)
+  // 2) 검색어에 따라 서버 호출 (검색 있으면 searchAll, 없으면 listRoadmaps)
   useEffect(() => {
     (async () => {
       try {
         if (query) {
           // 🔎 백엔드 검색 호출
           const data = await searchAll(query); // { users: [...], roadmaps: [...] }
-          console.log(data);
           setRoadmaps(data?.roadmaps ?? []);
         } else {
-          
-          //여기서 전체로드맵요청하고 서버응답을 상태에 저장 
+          // 전체 로드맵 요청하고 상태에 저장
           const data = await listRoadmaps();
-          setRoadmaps(data);
-          console.log(data);
+          setRoadmaps(data ?? []);
         }
       } catch (err) {
         console.error("로드맵/검색 불러오기 실패:", err);
@@ -59,6 +55,26 @@ function Home() {
       }
     })();
   }, [query]);
+
+  // ✅ 상세에서 navigate("/", { state: { updatedId, likeCount, bookmarkCount } })로 넘어온 값을
+  //    홈 리스트의 해당 카드에만 즉시 반영
+  useEffect(() => {
+    if (location.state?.updatedId) {
+      setRoadmaps((prev) =>
+        prev.map((r) =>
+          r.roadmapId === location.state.updatedId
+            ? {
+                ...r,
+                likeCount: location.state.likeCount,
+                bookmarkCount: location.state.bookmarkCount,
+              }
+            : r
+        )
+      );
+      // 새로고침/재방문 시 중복 반영 방지
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   // 카테고리 클릭 시: 검색모드 종료(쿼리 제거) + 선택 카테고리 변경
   const filterRoadmaps = (category) => {
@@ -109,7 +125,7 @@ function Home() {
       <TopHeader nickname={nickname} />
       <HomeContainer>
         <WelcomeSection />
-        
+
         <CategorySection
           categories={categories}
           selectedCategory={selectedCategory}

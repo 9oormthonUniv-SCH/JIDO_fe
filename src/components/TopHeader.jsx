@@ -106,7 +106,7 @@ const LoginButton = styled.button`
 `;
 
 /* --- component --- */
-function TopHeader() {
+function TopHeader({ nickname: nicknameProp, onLogoClick }) {
   const navigate = useNavigate();
   const [isAuthed, setIsAuthed] = useState(false);
   const [nickname, setNickname] = useState("");
@@ -179,7 +179,10 @@ function TopHeader() {
   return (
     <HeaderContainer>
       <Menu>
-        <Logo onClick={() => navigate("/")} />
+        <Logo onClick={() => {
+   if (onLogoClick) onLogoClick();
+   else navigate("/");
+ }} />
         <Option onClick={() => navigate("/")}>로드맵 목록</Option>
         <Option onClick={() => goOrAskLogin("/mypage")}>나의 로드맵</Option>
         <Option onClick={() => goOrAskLogin("/newfeed")}>로드맵 만들기</Option>

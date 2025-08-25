@@ -2,12 +2,12 @@
 import api from "./client.js";
 
 //로드맵
-export async function createRoadmap({ authorId, title, description, category, isPublic }) {
+export async function createRoadmap({ authorId, title, description, categoryId, isPublic }) {
   const res = await api.post("/roadmaps", {
     authorId,          
     title,
     description,
-    category,
+    categoryId,
     isPublic,
   });
   return res.data;
@@ -84,4 +84,10 @@ export async function listStepContents(stepId) {
 export async function getRoadmapDetail(roadmapId) {
   const res = await api.get(`/roadmaps/${roadmapId}/detail`);
   return res.data;
+}
+
+// ⬇️ 맨 아래 근처에 추가
+export async function listCategories() {
+  const res = await api.get("/categories");
+  return res.data; // [{ categoryId, name, depth, parentCategoryId }]
 }
