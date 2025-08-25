@@ -2,49 +2,63 @@
 import api from "./client.js";
 
 //로드맵
-export async function createRoadmap({ authorId, title, description, categoryId, isPublic }) {
+export async function createRoadmap({ authorId, title, description, category, isPublic }) {
   const res = await api.post("/roadmaps", {
     authorId,          
     title,
     description,
-    categoryId,
+    category,
     isPublic,
+    sections:[],   
   });
   return res.data;
 }
 
 //레벨
 export async function createSection(roadmapId, title, sectionNum) {
-const body = { 
-  roadmap: { roadmapId },   
-  title, 
-  sectionNum 
-};
+  const body = { 
+    roadmap: { roadmapId },   
+    title, 
+    sectionNum 
+  };
+  console.log("[REQ] POST /sections", body);
+
   const res = await api.post("/sections", body);
+  console.log("[RES] /sections", res.status, res.data);
+
   return res.data;
 }
 
-
 //스텝
 export async function createStep(sectionId, title, stepNumber) {
-const body = { 
-  roadmapSection: { sectionId },  
-  title, 
-  stepNumber 
-};  
- const res = await api.post("/steps", body);
+  const body = { 
+    roadmapSection: { sectionId },  
+    title, 
+    stepNumber 
+  };  
+  console.log("[REQ] POST /steps", body);
+
+  const res = await api.post("/steps", body);
+  console.log("[RES] /steps", res.status, res.data);
+
   return res.data;
 }
 
 //체크리스트
 export async function createStepContent(stepId, content, finished = false) {
-const body = { 
-  step: { stepId },  
-  content, 
-  finished 
-};  const res = await api.post("/step-contents", body);
+  const body = { 
+    step: { stepId },  
+    content, 
+    finished 
+  };  
+  console.log("[REQ] POST /step-contents", body);
+
+  const res = await api.post("/step-contents", body);
+  console.log("[RES] /step-contents", res.status, res.data);
+
   return res.data;
 }
+
 
 //로드맵 조회용
 
@@ -90,4 +104,10 @@ export async function getRoadmapDetail(roadmapId) {
 export async function listCategories() {
   const res = await api.get("/categories");
   return res.data; // [{ categoryId, name, depth, parentCategoryId }]
+}
+
+// 로드맵 삭제
+export async function deleteRoadmap(roadmapId) {
+  const res = await api.delete(`/roadmaps/${roadmapId}`);
+  return res.data; // 백엔드가 바디 없으면 undefined라서 호출만 성공하면 OK
 }

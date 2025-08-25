@@ -4,8 +4,7 @@ import Logo from "../components/Logo";
 import { useNavigate } from "react-router-dom";
 import { FaTrash } from "react-icons/fa";
 import categories from "../data/categories";  
-import { createRoadmap, createSection, createStep, createStepContent } from "../api/roadmap.js";
-
+import { createRoadmap, createSection, createStep, createStepContent, listCategories } from "../api/roadmap.js";
 
 
 const AllContainer = styled.div`
@@ -298,6 +297,24 @@ function NewFeed() {
   const addLevel = () => {setLevels((prev)=>[...prev,{steps:[]}]);};
 
 
+// 선택한 이름(first/second/third)을 백엔드 카테고리 ID로 변환
+const resolveCategoryId = async (first, second, third) => {
+  const cats = await listCategories(); 
+  // cats: [{ categoryId, name, depth, parentCategoryId }, ...]
+
+  const d1 = cats.find(c => c.depth === 1 && c.name === first);
+  if (!d1) throw new Error("1차 카테고리를 찾을 수 없습니다.");
+
+  if (!second) return d1.categoryId;
+  const d2 = cats.find(c => c.depth === 2 && c.name === second && c.parentCategoryId === d1.categoryId);
+  if (!d2) throw new Error("2차 카테고리를 찾을 수 없습니다.");
+
+  if (!third) return d2.categoryId;
+  const d3 = cats.find(c => c.depth === 3 && c.name === third && c.parentCategoryId === d2.categoryId);
+  if (!d3) throw new Error("3차 카테고리를 찾을 수 없습니다.");
+
+  return d3.categoryId; // 최종 leaf id
+};
 
 
   const addRoadmapBox = (levelIndex) => {
@@ -392,54 +409,45 @@ function NewFeed() {
 const saveRoadmap = async () => {
   if (!title.trim()) return alert("제목을 입력해 주세요.");
   if (!description.trim()) return alert("설명을 입력해 주세요.");
+  if (!firstSelect) return alert("카테고리를 선택해 주세요.");
 
-  const categoryPath = [firstSelect, secondSelect, thirdSelect].filter(Boolean).join(" > ");
-  if (!categoryPath) return alert("카테고리를 선택해 주세요.");
-
-const authorId = Number(localStorage.getItem("userId"));  
-if (!authorId) {
+  const authorId = Number(localStorage.getItem("userId"));
+  if (!authorId) {
     alert("로그인이 필요합니다.");
     navigate("/login");
     return;
   }
- console.log(authorId);
-  //서버호출구간
-  try {
-const roadmap = await createRoadmap({
-  authorId,   // ✅ 필수
-  title,
-  description,
-  category: categoryPath,
-  isPublic: openState,
-}); 
-console.log(roadmap);
 
-const roadmapId = roadmap?.roadmapId;
-   console.log(roadmapId);
+  try {
+    
+    // ✅ 여기서 ID 변환 (try 안으로 이동)
+    const category = await resolveCategoryId(firstSelect, secondSelect, thirdSelect);
+
+    // ✅ 실제 전송 바디 확인
+    const payload = { authorId, title, description, category, isPublic: openState,   sections: [],}
+    console.log("createRoadmap payload:", payload);
+
+    const roadmap = await createRoadmap(payload);
+    console.log("createRoadmap res:", roadmap);
+
+    const roadmapId = roadmap?.roadmapId;
     if (!roadmapId) throw new Error("roadmapId가 응답에 없습니다.");
 
-    // 2) 섹션/스텝/체크리스트 생성
+    // 섹션/스텝/체크A리스트 생성
     for (let li = 0; li < levels.length; li++) {
       const section = await createSection(roadmapId, `Lv.${li + 1}`, li + 1);
-      console.log("섹션 응답:", section);
-      
       const sectionId = section?.sectionId;
       if (!sectionId) throw new Error("sectionId가 응답에 없습니다.");
-        console.log(sectionId);
 
       for (let si = 0; si < levels[li].steps.length; si++) {
         const s = levels[li].steps[si];
         const createdStep = await createStep(sectionId, s.title || `Step ${si + 1}`, si + 1);
-        console.log("스텝 응답:", createdStep);
-
         const stepId = createdStep?.stepId;
         if (!stepId) throw new Error("stepId가 응답에 없습니다.");
-         console.log(stepId);
 
         for (const raw of s.checklist) {
           const text = (raw || "").trim();
           if (text) await createStepContent(stepId, text, false);
-           console.log(text);
         }
       }
     }
@@ -447,11 +455,18 @@ const roadmapId = roadmap?.roadmapId;
     alert("로드맵이 업로드되었습니다!");
     navigate("/");
   } catch (err) {
-    console.error("[로드맵 업로드 실패]", err?.response?.data || err);
-    const msg = err?.response?.data?.error || err?.message || "서버 오류";
-    alert(`업로드 실패: ${msg}`);
-  }
+  console.error("[로드맵 업로드 실패]", {
+    url: err?.config?.url,
+    method: err?.config?.method,
+    data: err?.config?.data && JSON.parse(err.config.data),
+    status: err?.response?.status,
+    resp: err?.response?.data,
+    headers: err?.response?.headers,
+  });
+  alert(`업로드 실패: ${err?.response?.data?.message || err?.response?.data || err.message}`);
+}
 };
+
   return (
     <AllContainer>
       <Logo />

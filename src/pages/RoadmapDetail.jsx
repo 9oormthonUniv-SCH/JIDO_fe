@@ -3,7 +3,7 @@ import TopHeader from "../components/TopHeader";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaHeart, FaRegHeart, FaReply, FaTrash, FaBookmark,FaRegBookmark} from "react-icons/fa";
-import {getRoadmapDetail,} from "../api/roadmap";
+import {getRoadmapDetail,listCategories, deleteRoadmap} from "../api/roadmap";
 import {addLike, removeLike, addBookmark, removeBookmark, fetchLikeStatus, fetchBookmarkStatus ,} from "../api/roadmapLike";
 const Container = styled.div`
   display: flex;
@@ -332,10 +332,38 @@ function RoadmapDetail() {
   const [replyTarget, setReplyTarget] = useState(null);
 
   const [loading, setLoading] = useState(false);
-
+  const [catMap, setCatMap] = useState(null);
   // 연타 방지
   const [likeBusy, setLikeBusy] = useState(false);
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
+   const [deleting, setDeleting] = useState(false);
+  const buildIdToPathLabel = (cats) => {
+  const byId = new Map(cats.map(c => [String(c.categoryId), c]));
+  const idToPath = new Map();
+  cats.forEach(c => {
+    const id = String(c.categoryId);
+    const names = [];
+    let cur = c;
+    while (cur) {
+      names.unshift(cur.name);
+      cur = cur.parentCategoryId ? byId.get(String(cur.parentCategoryId)) : null;
+    }
+    idToPath.set(id, names.join(" > "));
+  });
+  return idToPath;
+};
+
+// 마운트 시 한 번만 카테고리 맵 로드
+useEffect(() => {
+  (async () => {
+    try {
+      const cats = await listCategories();
+      setCatMap(buildIdToPathLabel(cats));
+    } catch (e) {
+      console.error("[카테고리 로드 실패]", e);
+    }
+  })();
+}, []);
 
   // 상세 + 좋아요/북마크 상태 동시 동기화
   const fetchDetail = async (rid) => {
@@ -369,11 +397,33 @@ function RoadmapDetail() {
   }, [id]);
 
   // 로드맵 삭제 (필요 시 실제 API로 교체)
-  const handleDeletePost = () => {
-    alert("로드맵이 삭제되었습니다");
-    navigate("/");
+  const handleDeletePost = async () => {
+    if (deleting) return;
+    const rid = Number(id);
+    if (!rid) return;
+    if (!window.confirm("정말 삭제할까요? 되돌릴 수 없어요.")) return;
+    try {
+      setDeleting(true);
+      await deleteRoadmap(rid);        // ✅ 실제 DELETE /roadmaps/{id} 호출
+      alert("로드맵이 삭제되었습니다.");
+      navigate("/");
+    } catch (e) {
+      const s = e?.response?.status;
+      if (s === 401) {
+        alert("로그인이 필요합니다.");
+        navigate("/login");
+      } else if (s === 403) {
+        alert("삭제 권한이 없습니다.");
+      } else if (s === 404) {
+        alert("이미 삭제되었거나 존재하지 않습니다.");
+      } else {
+        alert("삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      }
+      console.error("[로드맵 삭제 실패]", e);
+    } finally {
+      setDeleting(false);
+    }
   };
-
   // 좋아요 토글 (낙관적 업데이트 + 서버 정답 재확정)
   const handleLike = async () => {
     if (likeBusy) return;
@@ -485,11 +535,14 @@ function RoadmapDetail() {
    }
 />
       <Container>
-        <ContainerButton>
+       <ContainerButton>
+          {roadmap && Number(localStorage.getItem("userId")) === Number(roadmap.authorId) && (
           <DeleteContainer>
-            <UpdateButton onClick={() => navigate(`/edit/${id}`)}>수정</UpdateButton>
-            <DeleteButton onClick={handleDeletePost}>삭제</DeleteButton>
-          </DeleteContainer>
+             <UpdateButton onClick={() => navigate(`/edit/${id}`)}>수정</UpdateButton>
+             <DeleteButton onClick={handleDeletePost}>삭제</DeleteButton>
+           </DeleteContainer>
+         )}
+          
 
           {/* 북마크 버튼 */}
           <BookmarkButton
@@ -505,8 +558,9 @@ function RoadmapDetail() {
         {roadmap && (
           <AllContainer>
             <Title>{roadmap.title}</Title>
-            <CategoryPath>{roadmap.category}</CategoryPath>
-            <Description>{roadmap.description}</Description>
+<CategoryPath>
+ {catMap?.get(String(roadmap.category)) ?? String(roadmap.category)}</CategoryPath>            
+ <Description>{roadmap.description}</Description>
             <Author>작성자: {roadmap.authorNickname}</Author>
             <p>좋아요: {likeCount}, 북마크: {bookmarkCount}</p>
           </AllContainer>
