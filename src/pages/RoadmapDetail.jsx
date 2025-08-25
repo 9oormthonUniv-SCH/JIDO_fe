@@ -3,7 +3,7 @@ import TopHeader from "../components/TopHeader";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaHeart, FaRegHeart, FaReply, FaTrash, FaBookmark,FaRegBookmark} from "react-icons/fa";
-import {getRoadmap,listSections,listSteps,listStepContents,} from "../api/roadmap";
+import {getRoadmapDetail,} from "../api/roadmap";
 import {addLike, removeLike, addBookmark, removeBookmark,} from "../api/roadmapLike";
 const Container = styled.div`
   display: flex;
@@ -385,80 +385,17 @@ useEffect(() => {
     try {
       setLoading(true);
 
-      // 1) 로드맵
-      const rm = await getRoadmap(id);
-      console.log("[로드맵]", rm);
+      const rm = await getRoadmapDetail(id);
+      
+      console.log("[로드맵 상세]", rm);
+
       setRoadmap(rm);
+      setSections(rm.sections || []); // detail 응답에 sections가 바로 들어있음
 
-      // 2) 섹션 목록
-      const rawSections = await listSections(id);
-      console.log(`[섹션목록] ${rawSections.length}개`, rawSections);
+      // 좋아요/북마크 초기 상태도 같이 세팅
+      setLikeState(rm.likedByMe);
+      setBookmark(rm.bookmarkedByMe);
 
-      // ── 헬퍼: 스텝 1개 → 콘텐츠 붙이기
-      const attachContentsToStep = async (step) => {
-        console.groupCollapsed(`step ${step.stepId} 불러오기 시작`);
-        try {
-          console.log("원본 step:", step);
-          const contents = await listStepContents(step.stepId);
-          console.log(`step ${step.stepId}의 contents ${contents.length}개`, contents);
-          const enriched = { ...step, stepContents: contents };
-          console.log("enriched step:", enriched);
-          return enriched;
-        } catch (err) {
-          console.error(`step ${step.stepId} 로딩 실패`, err);
-          throw err;
-        } finally {
-          console.groupEnd();
-        }
-      };
-
-      // ── 헬퍼: 섹션 1개 → 스텝(+콘텐츠) 붙이기
-      const attachStepsToSection = async (sec) => {
-        console.groupCollapsed(`section ${sec.sectionId} 불러오기 시작`);
-        try {
-          console.log("원본 section:", sec);
-          const steps = await listSteps(sec.sectionId);
-          console.log(`section ${sec.sectionId}의 steps ${steps.length}개`, steps);
-
-          const t0 = performance.now();
-          const stepsWithContents = await Promise.all(steps.map(attachContentsToStep));
-          const t1 = performance.now();
-          console.log(
-            `section ${sec.sectionId} 스텝 콘텐츠 결합 완료 (±${Math.round(t1 - t0)}ms)`,
-            stepsWithContents
-          );
-
-          const enriched = { ...sec, steps: stepsWithContents };
-          console.log("enriched section:", enriched);
-          return enriched;
-        } catch (err) {
-          console.error(`section ${sec.sectionId} 로딩 실패`, err);
-          throw err;
-        } finally {
-          console.groupEnd();
-        }
-      };
-
-      // 3) 섹션 배열 → 모두 결합
-      const tAll0 = performance.now();
-      const fullSections = await Promise.all(rawSections.map(attachStepsToSection));
-      const tAll1 = performance.now();
-
-      // Promise.all은 입력 순서를 보존합니다 → rawSections 순서 == fullSections 순서
-      console.log(
-        `[최종 섹션] ${fullSections.length}개 (총 ${Math.round(tAll1 - tAll0)}ms)`,
-        fullSections
-      );
-      // 빠른 표 형태 확인
-      console.table(
-        fullSections.map(s => ({
-          sectionId: s.sectionId,
-          title: s.title,
-          stepCount: s.steps?.length ?? 0
-        }))
-      );
-
-      setSections(fullSections);
     } catch (e) {
       console.error("로드맵 상세 불러오기 실패", e);
     } finally {
@@ -466,6 +403,7 @@ useEffect(() => {
     }
   })();
 }, [id]);
+
 
 
 
@@ -600,29 +538,30 @@ return (
         </LikeContainer>
 
         {/* 레벨/스텝/체크리스트 */}
-        <LevelsContainer>
-          {sections.map((sec) => (
-            <LevelBlock key={sec.sectionId}>
-              <LevelTitle>
-                Lv.{sec.sectionNum} {sec.title}
-              </LevelTitle>
+      <LevelsContainer>
+  {sections.map((sec) => (
+    <LevelBlock key={sec.sectionId}>
+      <LevelTitle>
+        Lv.{sec.sectionNum} {sec.title}
+      </LevelTitle>
 
-              <StepContainer>
-                {sec.steps.map((step) => (
-                  <StepBox key={step.stepId}>
-                    <StepTitle>{step.title}</StepTitle>
-                    {step.stepContents.map((c) => (
-                      <ChecklistItem key={c.stepContentId}>
-                        <input type="checkbox" checked={c.finished} readOnly />{" "}
-                        {c.content}
-                      </ChecklistItem>
-                    ))}
-                  </StepBox>
-                ))}
-              </StepContainer>
-            </LevelBlock>
-          ))}
-        </LevelsContainer>
+      <StepContainer>
+        {sec.steps.map((step) => (
+          <StepBox key={step.stepId}>
+            <StepTitle>{step.title}</StepTitle>
+            {step.contents.map((c) => (   // ✅ 여기 이름만 contents
+              <ChecklistItem key={c.stepContentId}>
+                <input type="checkbox" checked={c.finished} readOnly />{" "}
+                {c.content}
+              </ChecklistItem>
+            ))}
+          </StepBox>
+        ))}
+      </StepContainer>
+    </LevelBlock>
+  ))}
+</LevelsContainer>
+
 
         {/* 댓글 입력 */}
         <BottomContainer>

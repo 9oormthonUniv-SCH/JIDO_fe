@@ -78,3 +78,10 @@ export async function listStepContents(stepId) {
   const res = await api.get(`/steps/${stepId}/step-contents`);
   return res.data;
 }
+
+
+//로드맵 가져오기
+export async function getRoadmapDetail(roadmapId) {
+  const res = await api.get(`/roadmaps/${roadmapId}/detail`);
+  return res.data;
+}
