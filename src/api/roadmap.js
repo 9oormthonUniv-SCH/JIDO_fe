@@ -111,3 +111,41 @@ export async function deleteRoadmap(roadmapId) {
   const res = await api.delete(`/roadmaps/${roadmapId}`);
   return res.data; // 백엔드가 바디 없으면 undefined라서 호출만 성공하면 OK
 }
+
+// 목록
+export async function listRoadmapComments(roadmapId) {
+  const res = await api.get(`/roadmaps/${roadmapId}/comments`);
+  return res.data; // [{ commentId, authorNickname, content, createdAt, updatedAt, likeCount, likedByMe }]
+}
+
+// 생성
+export async function createRoadmapComment(roadmapId, content, parentId = null) {
+  const body = { content };
+  if (parentId) body.parentId = parentId;  // 대댓글이면 parentId 포함
+  const res = await api.post(`/roadmaps/${roadmapId}/comments`, body);
+  return res.data; // { commentId, authorId, authorNickname, ... }
+}
+
+// 수정
+export async function updateRoadmapComment(roadmapId, commentId, content) {
+  const res = await api.put(`/roadmaps/${roadmapId}/comments/${commentId}`, { content });
+  return res.data;
+}
+
+// 삭제
+export async function deleteRoadmapComment(roadmapId, commentId) {
+  const res = await api.delete(`/roadmaps/${roadmapId}/comments/${commentId}`);
+  return res.data;
+}
+
+// 댓글 좋아요 추가
+export async function addCommentLike(commentId) {
+  const res = await api.post(`/comments/${commentId}/likes`);
+  return res.data;
+}
+
+// 댓글 좋아요 취소
+export async function removeCommentLike(commentId) {
+  const res = await api.delete(`/comments/${commentId}/likes`);
+  return res.data;
+}

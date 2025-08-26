@@ -18,7 +18,7 @@ export default defineConfig({
     cookiePathRewrite: "/",           // ★ 쿠키 path도 /
           rewrite: (p) => {
       const keep = /^\/api\/(login|csrf)(\/|$)/; // 유지
-      const strip = /^\/api\/(user|sections|steps|step-contents|roadmaps|notifications|categories)(\/|$)/; // 제거
+      const strip = /^\/api\/(user|sections|steps|step-contents|roadmaps|notifications|categories|comments)(\/|$)/; // 제거
       if (keep.test(p)) return p;
       if (strip.test(p)) return p.replace(/^\/api/, '');
       return p;
