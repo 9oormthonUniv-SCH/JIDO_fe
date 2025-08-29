@@ -1,10 +1,10 @@
+// src/pages/MyInfo.jsx
 import { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useNavigate } from "react-router-dom";
 import TopHeader from "../components/TopHeader";
-import { logout } from "../api/auth"; 
+import { useNavigate } from "react-router-dom";
+import { logout } from "../api/auth";
 import { getUserById } from "../api/users";
-
 
 const TotalContainer = styled.div`
   display: flex;
@@ -21,16 +21,6 @@ const TopInfo = styled.div`
   margin-top: 40px;
   margin-bottom: 30px;
   justify-content: flex-start;
-`;
-
-
-const MyImg = styled.img`
-  border-radius: 50%;
-  width: 150px;
-  height: 150px;
-  background-color: #e6e6e6;
-  border: 2px solid #2e5c4d;
-  object-fit: cover;
 `;
 
 const Container = styled.div`
@@ -132,14 +122,12 @@ function MyInfo() {
   const [userLoginId, setUserLoginId] = useState("");
   const [password, setPassword] = useState(""); // 저장된 게 있으면 표시용
   const [selectedList, setSelectedList] = useState([]);
-  const [profileImg, setProfileImg] = useState("");
 
   const navigate = useNavigate();
 
   useEffect(() => {
     const userIdStr = localStorage.getItem("userId");
 
-    // 서버 값으로 덮어쓰기
     (async () => {
       try {
         const userId = Number(userIdStr);
@@ -147,6 +135,9 @@ function MyInfo() {
         setNickname(u?.nickname ?? "");
         setEmail(u?.email ?? "");
         setUserLoginId(u?.userLoginId ?? "");
+        // 필요 시 가입일/관심카테고리도 여기서 세팅
+        // setSignupDate(u?.createdAt?.slice(0,10) ?? "");
+        // setSelectedList(u?.categories ?? []);
       } catch (err) {
         console.error("내 정보 조회 실패:", err?.response || err);
       }
@@ -165,7 +156,7 @@ function MyInfo() {
       <TopHeader nickname={nickname} />
       <TotalContainer>
         <TopInfo>
-          <MyImg src={profileImg || "/default_profile.png"} />
+          {/* 🔻 사진 제거: 이름/가입일만 표시 */}
           <Container>
             <UserName>{nickname || userLoginId || "사용자"}</UserName>
             {signupDate && <SignupDate>가입일: {signupDate}</SignupDate>}

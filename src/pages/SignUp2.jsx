@@ -6,13 +6,33 @@ import categories from "../data/categories";
 import { signUp } from "../api/auth"; 
 import { fetchCategories } from "../api/users";
 import { useEffect } from "react";
+import { FaArrowLeft } from "react-icons/fa"; 
 
+const BackButton = styled.div`
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  cursor: pointer;
+  color: #2e5c4d;
+  font-size: 22px;
+  &:hover {
+    color: #24493d;
+  }
+`;
 
 const Container=styled.div`
   display:flex;
   flex-direction:column;
   align-items:center;
-  margin-top:100px;
+`;
+
+const Logo = styled.h1`
+  font-size:32px;
+  font-weight:bold;
+  color:black;
+  cursor:pointer;
+  margin-bottom:40px;
+  margin-top:90px;
 `;
 
 const Title=styled.h2`
@@ -137,8 +157,14 @@ function SignUp2() {
 
   return (
     <>
-      <TopHeader nickname={nickname}/>
+     
       <Container>
+          <BackButton onClick={() => navigate("/signup")}>
+                  <FaArrowLeft />
+                </BackButton>
+                      
+        <Logo onClick={() => navigate("/")}>JIDO</Logo>
+
         <Title>관심 분야를 선택해주세요</Title>
 
         <SelectedList>

@@ -19,6 +19,11 @@ export async function getUserById(userId) {
   const res = await api.get(`/user/${userId}`);
   return res.data;  // { userId, userLoginId, email, nickname, age }
 }
+export async function updateUser(id, body) {
+  // body: { userLoginId, email, nickname, password?, age? }
+  const { data } = await api.patch(`/user/${id}`, body);
+  return data;
+}
 
 // fetchCategories()
 

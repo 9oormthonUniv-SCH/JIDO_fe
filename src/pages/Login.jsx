@@ -3,6 +3,19 @@ import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { login } from "../api/auth";
+import { FaArrowLeft } from "react-icons/fa"; 
+
+const BackButton = styled.div`
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  cursor: pointer;
+  color: #2e5c4d;
+  font-size: 22px;
+  &:hover {
+    color: #24493d;
+  }
+`;
 
 const Container = styled.div`
   display:flex;
@@ -117,7 +130,11 @@ navigate("/");
   };
 
   return (
-    <Container>
+       <Container>
+       <BackButton onClick={() => navigate("/")}>
+          <FaArrowLeft />
+
+        </BackButton>
       <Logo onClick={() => navigate("/")}>JIDO</Logo>
       <Title>LOGIN</Title>
 

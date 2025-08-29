@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopHeader from "../components/TopHeader";
 import { FaHeart, FaComment, FaBookmark, FaBell } from "react-icons/fa";
-import { fetchNotifications, markAllRead, markOneRead } from "../api/notification";
+import { fetchNotifications, markAllRead, markOneRead , deleteRead} from "../api/notification";
 
 /* =========================
    1) 화면 레이아웃 / 기본 스타일
@@ -128,6 +128,7 @@ function NoticePage() {
   const load = async () => {
     try {
       const list = await fetchNotifications();      // GET /notifications
+      console.log(list);
       // 서버 모델 -> 화면 모델로 살짝 포맷
       const mapped = (list || []).map(n => ({
         id: n.id ?? n.notificationId,        // 서버가 어떤 키를 주든 대응
@@ -138,6 +139,7 @@ function NoticePage() {
         url: n.url || null,
       }));
       setNotices(mapped);
+      console.log("[MAPPED LIST]", mapped); 
       // 헤더 배지 갱신용(선택) — auth-change를 날리면 TopHeader 폴링 없이 즉시 반영 가능
       window.dispatchEvent(new Event("auth-change"));
     } catch (e) {
@@ -156,7 +158,9 @@ function NoticePage() {
   const handleMarkAll = async () => {
     try {
       await markAllRead();            // PUT /notifications/mark-all-read
+       try { await deleteRead(); } catch (_) {} 
       await load();
+      window.dispatchEvent(new Event("notice-updated"));
     } catch (e) {
       console.error("[NOTICE] mark-all", e?.response || e);
     }
@@ -168,17 +172,27 @@ function NoticePage() {
     if (!item) return;
 
     // 서버에서 id를 내려주지 않으면 개별 처리 불가 → 그냥 url로 이동만
-    if (!item.id) {
-      if (item.url) window.location.href = item.url;
-      return;
-    }
+     if (!item.id) {
+   console.warn("[NOTICE] no id in item; cannot mark read individually. Check API payload.");
+    if (item.url) window.location.href = item.url;
+    return;
+  }
+
 
     if (!item.read) {
       try {
         await markOneRead(item.id);   // PUT /notifications/{id}/read
-        // 낙관적 업데이트
-        setNotices(prev => prev.map((n, i) => i === idx ? { ...n, read: true } : n));
-        window.dispatchEvent(new Event("auth-change"));
+        console.log(item.id);
+      // ✅ 1) 리스트 즉시 회색(낙관적)
+      setNotices(prev => prev.map((n, i) => i === idx ? { ...n, read: true } : n));
+      // ✅ 2) 헤더 배지 즉시 -1
+      window.dispatchEvent(new CustomEvent("notice-delta", { detail: { delta: -1 } }));
+      // (선택) 안정성: 헤더가 최신을 못 받았을 때 대비해 재조회 트리거
+      window.dispatchEvent(new Event("notice-updated"));
+
+      // (선택) 알림에 링크가 있으면 이동
+      if (item.url) window.location.href = item.url;
+     
       } catch (e) {
         console.error("[NOTICE] mark-one", e?.response || e);
       }

@@ -46,3 +46,24 @@ export async function fetchBookmarkStatus(roadmapId) {
   });
   return data; // { bookmarked, bookmarkCount }
 }
+
+
+// /** 내가 북마크한 로드맵 목록 (ID 리스트) */
+// /** 내가 북마크한 로드맵 목록 (ID 리스트) */
+// export async function listMyBookmarks() {
+//   const { data } = await api.get("/roadmaps/bookmarks/my", {
+//     withCredentials: true,   // 세션 쿠키 필요하면 추가
+//   });
+//   // 기대 응답: [{ roadmapId, bookmarkedAt }]
+//   return data;
+// }
+
+export async function listMyBookmarks() {
+  // 백엔드가 roadmapId를 요구하지만 실제로는 전체 리스트를 준다고 했으니
+  // 의미 없는 0 같은 더미 값을 넣어 호출합니다.
+  const { data } = await api.get(`/roadmaps/0/bookmark/my`, {
+    withCredentials: true,
+  });
+  // 기대 응답: [{ roadmapId, bookmarkedAt }]
+  return Array.isArray(data) ? data : [];
+}

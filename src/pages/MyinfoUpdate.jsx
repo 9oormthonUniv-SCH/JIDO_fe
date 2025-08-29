@@ -1,8 +1,10 @@
+// src/pages/MyinfoUpdate.jsx
 import { useEffect, useState } from "react";
 import styled from "styled-components";
 import TopHeader from "../components/TopHeader";
-import { FaCamera } from "react-icons/fa"; // 카메라 아이콘 (react-icons 사용)
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate } from "react-router-dom";
+import { getUserById, updateUser } from "../api/users"; // ✅ PATCH용 함수 추가 임포트
+
 const TotalContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -12,49 +14,12 @@ const TotalContainer = styled.div`
   align-items: center;
 `;
 
-// 사진+이름+가입일자 컨테이너
 const TopInfo = styled.div`
   display: flex;
   gap: 15px;
   margin-top: 40px;
   margin-bottom: 30px;
   justify-content: flex-start;
-`;
-
-// 프로필 이미지 + 아이콘 감싸는 컨테이너
-const ImgContainer = styled.div`
-  position: relative;
-  width: 150px;
-  height: 150px;
-`;
-
-const ImgLabel = styled.label`
-  cursor: pointer;
-  display: inline-block;
-`;
-
-const MyImg = styled.img`
-  border-radius: 50%;
-  width: 150px;
-  height: 150px;
-  background-color: #e6e6e6;
-  border: 2px solid #2e5c4d;
-  cursor: pointer;
-`;
-
-// 카메라 아이콘
-const CameraIcon = styled.div`
-  position: absolute;
-  bottom:8px;
-  right:8px;
-  background: rgba(46, 92, 77, 0.8);
-  color:white;
-  padding:8px;
-  border-radius:50%;
-  font-size:16px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
 `;
 
 const Container = styled.div`
@@ -74,7 +39,6 @@ const UserName = styled.input`
   width: 200px;
 `;
 
-// 이메일, 아이디, 비밀번호 컨테이너
 const ChangeContainer = styled.div`
   display: flex;
   width: 500px;
@@ -127,82 +91,93 @@ const CompleteButton = styled.button`
 function MyinfoUpdate() {
   const navigate = useNavigate();
 
+  // 서버에서 받는 값
   const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
+  // ⚠️ 이 변수명은 '로그인 아이디(userLoginId)'로 사용합니다.
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
-  const [profileImg, setProfileImg] = useState("");
 
- //임시
+  // 입력값(수정용)
   const [tempNickname, setTempNickname] = useState("");
   const [tempEmail, setTempEmail] = useState("");
   const [tempUserId, setTempUserId] = useState("");
   const [tempPassword, setTempPassword] = useState("");
-  const [tempProfileImg, setTempProfileImg] = useState("");
+
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const savedNickname = localStorage.getItem("nickname");
-    const savedEmail = localStorage.getItem("email");
-    const savedUserId = localStorage.getItem("userId");
-    const savedPassword = localStorage.getItem("password");
-    const savedProfileImg = localStorage.getItem("profileImg");
+    const numericUserId = Number(localStorage.getItem("userId")); // DB상의 userId(정수)
+    if (!numericUserId) return;
 
-    setNickname(savedNickname);
-    setEmail(savedEmail);
-    setUserId(savedUserId);
-    setPassword(savedPassword);
-    setProfileImg(savedProfileImg);
+    (async () => {
+      try {
+        const u = await getUserById(numericUserId); // GET /user/{id}
+        setNickname(u?.nickname ?? "");
+        setEmail(u?.email ?? "");
+        setUserId(u?.userLoginId ?? "");
+        // 비번은 보통 서버에서 안 내려줌(보안). 필요 시 빈값으로 두고 변경만 허용.
+        setPassword("");
 
-    setTempNickname(savedNickname);
-    setTempEmail(savedEmail);
-    setTempUserId(savedUserId);
-    setTempPassword(savedPassword);
-    setTempProfileImg(savedProfileImg);
+        setTempNickname(u?.nickname ?? "");
+        setTempEmail(u?.email ?? "");
+        setTempUserId(u?.userLoginId ?? "");
+        setTempPassword(""); // 변경 시에만 입력
+      } catch (e) {
+        console.error("내 정보 조회 실패:", e?.response || e);
+        alert("내 정보를 불러오지 못했습니다.");
+      }
+    })();
   }, []);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setTempProfileImg(reader.result);
-      reader.readAsDataURL(file);
+  const handleSave = async () => {
+    const numericUserId = Number(localStorage.getItem("userId")); // DB상의 userId(정수)
+    if (!numericUserId) return alert("로그인 정보가 없습니다.");
+
+    // 간단한 유효성
+    if (!tempNickname?.trim() || !tempEmail?.trim() || !tempUserId?.trim()) {
+      return alert("닉네임/이메일/아이디를 모두 입력하세요.");
     }
-  };
 
-  const handleSave = () => {
-    setNickname(tempNickname);
-    setEmail(tempEmail);
-    setUserId(tempUserId);
-    setPassword(tempPassword);
-    setProfileImg(tempProfileImg);
+    try {
+      setSaving(true);
 
-    localStorage.setItem("nickname", tempNickname);
-    localStorage.setItem("email", tempEmail);
-    localStorage.setItem("userId", tempUserId);
-    localStorage.setItem("password", tempPassword);
-    localStorage.setItem("profileImg", tempProfileImg);
+      // PATCH /user/{id}
+      await updateUser(numericUserId, {
+        userLoginId: tempUserId,
+        email: tempEmail,
+        nickname: tempNickname,
+        password: tempPassword || undefined, // 비밀번호 미변경이면 보낼 필요 X
+        // age: 0, // 필요 시 추가
+      });
 
-    alert("변경사항이 저장되었습니다.");
-     navigate("/myinfo");
+      // 로컬 상태/스토리지 동기화
+      setNickname(tempNickname);
+      setEmail(tempEmail);
+      setUserId(tempUserId);
+      setPassword(""); // 보안상 클리어
+
+      localStorage.setItem("nickname", tempNickname);
+      localStorage.setItem("email", tempEmail);
+      localStorage.setItem("userLoginId", tempUserId); // ✅ 로그인 아이디는 userLoginId 키로 저장
+      // 비번은 로컬스토리지에 보관하지 않는 것을 권장
+
+      alert("변경사항이 저장되었습니다.");
+      navigate("/myinfo");
+    } catch (e) {
+      console.error(e?.response || e);
+      alert("정보 수정 실패. 다시 시도해주세요.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <>
       <TopHeader nickname={nickname} />
       <TotalContainer>
-        {/*상단 이름이랑 이미지*/}
+        {/* 상단: 이름만 편집 */}
         <TopInfo>
-         <ImgLabel htmlFor="imgUpload">
-          <ImgContainer>
-            <MyImg src={tempProfileImg || "/default_profile.png"} />
-            <CameraIcon>
-            <FaCamera />
-           </CameraIcon>
-          </ImgContainer>
-         </ImgLabel>
-
-          <input id="imgUpload" type="file" style={{ display: "none" }} onChange={handleImageChange}/>
-
           <Container>
             <UserName
               type="text"
@@ -217,7 +192,7 @@ function MyinfoUpdate() {
             <div>
               <Label>이메일</Label>
               <Input
-                type="text"
+                type="email"
                 value={tempEmail}
                 onChange={(e) => setTempEmail(e.target.value)}
               />
@@ -231,9 +206,10 @@ function MyinfoUpdate() {
               />
             </div>
             <div>
-              <Label>비밀번호</Label>
+              <Label>비밀번호(변경 시에만 입력)</Label>
               <Input
-                type="text"
+                type="password"
+                placeholder="변경하지 않으면 비워두세요"
                 value={tempPassword}
                 onChange={(e) => setTempPassword(e.target.value)}
               />
@@ -241,7 +217,9 @@ function MyinfoUpdate() {
           </LoginContainer>
         </ChangeContainer>
 
-        <CompleteButton onClick={handleSave}>변경사항 저장</CompleteButton>
+        <CompleteButton onClick={handleSave} disabled={saving}>
+          {saving ? "저장 중..." : "변경사항 저장"}
+        </CompleteButton>
       </TotalContainer>
     </>
   );

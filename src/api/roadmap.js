@@ -1,151 +1,176 @@
 // src/api/roadmap.js
 import api from "./client.js";
 
-//로드맵
+/* =========================
+ * 생성 (로드맵/섹션/스텝/콘텐츠)
+ * ========================= */
 export async function createRoadmap({ authorId, title, description, category, isPublic }) {
   const res = await api.post("/roadmaps", {
-    authorId,          
+    authorId,
     title,
     description,
     category,
     isPublic,
-    sections:[],   
+    sections: [],
   });
   return res.data;
 }
 
-//레벨
 export async function createSection(roadmapId, title, sectionNum) {
-  const body = { 
-    roadmap: { roadmapId },   
-    title, 
-    sectionNum 
+  const body = {
+    roadmap: { roadmapId: Number(roadmapId) },
+    title,
+    sectionNum: Number(sectionNum),
   };
-  console.log("[REQ] POST /sections", body);
-
-  const res = await api.post("/sections", body);
-  console.log("[RES] /sections", res.status, res.data);
-
-  return res.data;
+  return (await api.post("/sections", body)).data;
 }
 
-//스텝
+// ✅ createStep: FK 네이밍 호환(roadmapSection/section/sectionId) 재시도 버전
 export async function createStep(sectionId, title, stepNumber) {
-  const body = { 
-    roadmapSection: { sectionId },  
-    title, 
-    stepNumber 
-  };  
-  console.log("[REQ] POST /steps", body);
+  const sId = Number(sectionId);
+  const n = Number(stepNumber);
+  const safeTitle = (title && String(title).trim()) || "Step";
 
-  const res = await api.post("/steps", body);
-  console.log("[RES] /steps", res.status, res.data);
+  const tries = [
+    { title: safeTitle, stepNumber: n, roadmapSection: { sectionId: sId } }, // 기본
+    { title: safeTitle, stepNumber: n, section: { sectionId: sId } },        // 대안1
+    { title: safeTitle, stepNumber: n, sectionId: sId },                      // 대안2
+  ];
 
-  return res.data;
+  let lastErr;
+  for (const body of tries) {
+    try {
+      const res = await api.post("/steps", body);
+      const data = res.data || {};
+      return { ...data, stepId: data.stepId ?? data.id };
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  console.error("[createStep failed]", lastErr?.response?.data || lastErr);
+  throw lastErr;
 }
 
-//체크리스트
 export async function createStepContent(stepId, content, finished = false) {
-  const body = { 
-    step: { stepId },  
-    content, 
-    finished 
-  };  
-  console.log("[REQ] POST /step-contents", body);
-
-  const res = await api.post("/step-contents", body);
-  console.log("[RES] /step-contents", res.status, res.data);
-
-  return res.data;
+  const body = {
+    step: { stepId: Number(stepId) },
+    content,
+    finished: !!finished,
+  };
+  return (await api.post("/step-contents", body)).data;
 }
 
-
-//로드맵 조회용
-
-//모든 로드맵-홈화면을위한ㄱ어
+/* =========================
+ * 조회
+ * ========================= */
 export async function listRoadmaps() {
-  const res = await api.get("/roadmaps");
-  return res.data; // [{roadmapId, title, description, category, author: {...}, likes, scraps}, ...]
+  return (await api.get("/roadmaps")).data;
 }
 
-// 1) 로드맵 단건 조회
 export async function getRoadmap(roadmapId) {
-  const res = await api.get(`/roadmaps/${roadmapId}`);
-  return res.data;
+  return (await api.get(`/roadmaps/${Number(roadmapId)}`)).data;
 }
 
-// ✅ 모든 섹션 가져오기 (roadmapId로 필터)
 export async function listSections(roadmapId) {
   const res = await api.get("/sections");
-  // roadmapId로 필터링
-  return res.data.filter(s => s.roadmap.roadmapId === Number(roadmapId));
+  return res.data.filter((s) => s.roadmap?.roadmapId === Number(roadmapId));
 }
 
-// 3) 특정 섹션의 스텝 조회
 export async function listSteps(sectionId) {
-  const res = await api.get(`/sections/${sectionId}/steps`);
-  return res.data;
+  return (await api.get(`/sections/${Number(sectionId)}/steps`)).data;
 }
 
-// 4) 특정 스텝의 콘텐츠 조회
 export async function listStepContents(stepId) {
-  const res = await api.get(`/steps/${stepId}/step-contents`);
-  return res.data;
+  return (await api.get(`/steps/${Number(stepId)}/step-contents`)).data;
 }
 
-
-//로드맵 가져오기
 export async function getRoadmapDetail(roadmapId) {
-  const res = await api.get(`/roadmaps/${roadmapId}/detail`);
-  return res.data;
+  return (await api.get(`/roadmaps/${Number(roadmapId)}/detail`)).data;
 }
 
-// ⬇️ 맨 아래 근처에 추가
 export async function listCategories() {
-  const res = await api.get("/categories");
-  return res.data; // [{ categoryId, name, depth, parentCategoryId }]
+  return (await api.get("/categories")).data;
 }
 
-// 로드맵 삭제
-export async function deleteRoadmap(roadmapId) {
-  const res = await api.delete(`/roadmaps/${roadmapId}`);
-  return res.data; // 백엔드가 바디 없으면 undefined라서 호출만 성공하면 OK
-}
-
-// 목록
+/* =========================
+ * 댓글/좋아요
+ * ========================= */
 export async function listRoadmapComments(roadmapId) {
-  const res = await api.get(`/roadmaps/${roadmapId}/comments`);
-  return res.data; // [{ commentId, authorNickname, content, createdAt, updatedAt, likeCount, likedByMe }]
+  return (await api.get(`/roadmaps/${Number(roadmapId)}/comments`)).data;
 }
 
-// 생성
+// ✅ parentId 전송 조건/타입 보정 (null/undefined가 아닐 때만 전송 + 숫자화)
 export async function createRoadmapComment(roadmapId, content, parentId = null) {
   const body = { content };
-  if (parentId) body.parentId = parentId;  // 대댓글이면 parentId 포함
-  const res = await api.post(`/roadmaps/${roadmapId}/comments`, body);
-  return res.data; // { commentId, authorId, authorNickname, ... }
-}
-
-// 수정
-export async function updateRoadmapComment(roadmapId, commentId, content) {
-  const res = await api.put(`/roadmaps/${roadmapId}/comments/${commentId}`, { content });
+  // ✅ null/undefined가 아닌 경우에만 parentId 추가 + 숫자변환
+  if (parentId !== null && parentId !== undefined) {
+    body.parentId = Number(parentId);
+  }
+  const res = await api.post(`/roadmaps/${Number(roadmapId)}/comments`, body);
   return res.data;
 }
 
-// 삭제
+// Swagger가 parentId도 받도록 되어 있으므로 옵션으로 허용
+export async function updateRoadmapComment(roadmapId, commentId, content, parentId = undefined) {
+  const body = { content };
+  if (parentId !== undefined && parentId !== null) body.parentId = Number(parentId);
+  return (await api.put(`/roadmaps/${Number(roadmapId)}/comments/${Number(commentId)}`, body)).data;
+}
+
 export async function deleteRoadmapComment(roadmapId, commentId) {
-  const res = await api.delete(`/roadmaps/${roadmapId}/comments/${commentId}`);
-  return res.data;
+  return (await api.delete(`/roadmaps/${Number(roadmapId)}/comments/${Number(commentId)}`)).data;
 }
 
-// 댓글 좋아요 추가
 export async function addCommentLike(commentId) {
-  const res = await api.post(`/comments/${commentId}/likes`);
-  return res.data;
+  return (await api.post(`/comments/${Number(commentId)}/likes`)).data;
 }
 
-// 댓글 좋아요 취소
 export async function removeCommentLike(commentId) {
-  const res = await api.delete(`/comments/${commentId}/likes`);
-  return res.data;
+  return (await api.delete(`/comments/${Number(commentId)}/likes`)).data;
+}
+
+/* =========================
+ * 수정
+ * ========================= */
+export async function updateRoadmap(roadmapId, { title, description, category, isPublic }) {
+  const body = { title, description, category, isPublic };
+  return (await api.put(`/roadmaps/${Number(roadmapId)}`, body)).data;
+}
+
+function compact(obj) {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null));
+}
+
+export async function updateSection(sectionId, { title, sectionNum }) {
+  const body = compact({ title, sectionNum: Number(sectionNum) });
+  return (await api.put(`/sections/${Number(sectionId)}`, body)).data;
+}
+
+export async function updateStep(stepId, { title, stepNumber }) {
+  const body = compact({ title, stepNumber: Number(stepNumber) });
+  return (await api.put(`/steps/${Number(stepId)}`, body)).data;
+}
+
+export async function updateStepContent(stepContentId, { content, finished }) {
+  const body = compact({ content, finished: typeof finished === "boolean" ? finished : undefined });
+  return (await api.put(`/step-contents/${Number(stepContentId)}`, body)).data;
+}
+
+/* =========================
+ * 삭제
+ * ========================= */
+export async function deleteStepContent(stepContentId) {
+  return api.delete(`/step-contents/${Number(stepContentId)}`);
+}
+
+export async function deleteStep(stepId) {
+  return api.delete(`/steps/${Number(stepId)}`);
+}
+
+export async function deleteSection(sectionId) {
+  return api.delete(`/sections/${Number(sectionId)}`);
+}
+
+export async function deleteRoadmap(roadmapId) {
+  return api.delete(`/roadmaps/${Number(roadmapId)}`);
 }

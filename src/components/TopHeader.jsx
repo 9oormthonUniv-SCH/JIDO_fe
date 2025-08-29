@@ -112,19 +112,39 @@ function TopHeader({ nickname: nicknameProp, onLogoClick }) {
   const [nickname, setNickname] = useState("");
   const [q, setQ] = useState("");
   const [noticeCount, setNoticeCount] = useState(0); // ✅ 미읽음 개수
+
+    // ✅ 로그인 필요 페이지로 이동 유틸
+  const goOrAskLogin = (path) => {
+    if (!isAuthed) {
+      alert("로그인이 필요합니다!");
+      navigate("/login");
+      return;
+    }
+    navigate(path);
+  };
+
+  // ✅ 검색 제출 핸들러
+  const onSubmitSearch = (e) => {
+    e.preventDefault();
+    const keyword = q.trim();
+    if (!keyword) return;
+    navigate(`/?query=${encodeURIComponent(keyword)}`);
+  };
+
   // 🔹 로그인 상태/닉네임 동기화
   useEffect(() => {
     const sync = async () => {
       const uid = localStorage.getItem("userId");
       const savedNick = localStorage.getItem("nickname") || "";
       setIsAuthed(!!uid);
-      if (savedNick) setNickname(savedNick);
-
+       if (savedNick) setNickname(savedNick);
+    // 외부에서 prop으로 닉네임을 내려준 경우 우선 반영 (선택)
+     if (nicknameProp) setNickname(nicknameProp);
       // 저장된 닉이 없으면 서버에서 1회 조회해서 캐시
       if (uid && !savedNick) {
         try {
-          const me = await getUserById(uid);  // 쿠키 기반 인증으로 동작
-          const nn = me?.nickName;
+        const me = await getUserById(Number(uid));
+       const nn = me?.nickname;       
           if (nn) {
             setNickname(nn);
             localStorage.setItem("nickname", nn);
@@ -143,38 +163,34 @@ function TopHeader({ nickname: nicknameProp, onLogoClick }) {
   }, []);
 
   // ✅ 미읽음 알림 개수 폴링 (30초 간격)
-  useEffect(() => {
-    let timer;
-    const loadUnread = async () => {
-      if (!isAuthed) { setNoticeCount(0); return; }
+   useEffect(() => {
+   const reload = async () => {
       try {
-        const unread = await fetchUnread(); // 배열 또는 숫자라면 프로젝트에 맞게 조정
-        const count = Array.isArray(unread) ? unread.length : Number(unread) || 0;
+        const unread = await fetchUnread(); // GET /notifications/unread
+       const count = Array.isArray(unread) ? unread.length : Number(unread) || 0;
         setNoticeCount(count);
-      } catch (e) {
+      } catch {
         setNoticeCount(0);
       }
     };
-    loadUnread();
-    timer = setInterval(loadUnread, 30000);
-    return () => clearInterval(timer);
-  }, [isAuthed]);
 
-  const goOrAskLogin = (path) => {
-    if (!isAuthed) {
-      alert("로그인이 필요합니다!");
-      navigate("/login");
-    } else {
-      navigate(path);
-    }
-  };
+    const handleDelta = (e) => {
+      const d = Number(e?.detail?.delta || 0);
+      if (!Number.isNaN(d)) {
+        setNoticeCount((c) => Math.max(0, c + d));
+      }
+    };
 
-  const onSubmitSearch = (e) => {
-    e.preventDefault();
-    const keyword = q.trim();
-    if (!keyword) return;
-    navigate(`/?query=${encodeURIComponent(keyword)}`);
-  };
+    reload();                                // 첫 1회
+    window.addEventListener("notice-updated", reload); // 전체 재조회 트리거
+    window.addEventListener("notice-delta", handleDelta); // 개별 -1 반영
+    const t = setInterval(reload, 30000);    // 폴링
+    return () => {
+      window.removeEventListener("notice-updated", reload);
+      window.removeEventListener("notice-delta", handleDelta);
+      clearInterval(t);
+    };
+  }, []);
 
   return (
     <HeaderContainer>

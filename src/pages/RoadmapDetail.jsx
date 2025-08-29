@@ -1,6 +1,7 @@
+// src/pages/RoadmapDetail.jsx
 import styled from "styled-components";
 import TopHeader from "../components/TopHeader";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaHeart, FaRegHeart, FaTrash, FaBookmark, FaRegBookmark, FaEdit } from "react-icons/fa";
 import {
@@ -10,11 +11,22 @@ import {
   listRoadmapComments,
   createRoadmapComment,
   updateRoadmapComment,
-  deleteRoadmapComment,    // ✅ 누락 추가
-  addCommentLike,          // ✅ 정확한 이름
-  removeCommentLike        // ✅ 정확한 이름
+  deleteRoadmapComment,
+  addCommentLike,
+  removeCommentLike
 } from "../api/roadmap";
-import {addLike, removeLike, addBookmark, removeBookmark, fetchLikeStatus, fetchBookmarkStatus ,} from "../api/roadmapLike";
+import {
+  addLike,
+  removeLike,
+  addBookmark,
+  removeBookmark,
+  fetchLikeStatus,
+  fetchBookmarkStatus
+} from "../api/roadmapLike";
+
+/* =========================
+   styled-components (원본 그대로)
+========================= */
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -35,46 +47,35 @@ const AllContainer = styled.div`
   align-items: center;
   padding: 50px 20px 30px;
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-  // position: relative; 
 `;
+
 const ContainerButton = styled.div`
   display: flex;
-  justify-content: space-between;   /* 양 끝 배치 */
-
+  justify-content: space-between;
   width: 100%;
-  max-width: 900px;                 /* AllContainer와 폭 맞춤 */
-  padding: 0 20px;                  /* 좌우 여백 */
-
+  max-width: 900px;
+  padding: 0 20px;
   margin-top: 8px;
 `;
 
-const DeleteContainer =styled.div`
-
-display:flex;
-gap:10px;
-margin-left:auto;
-
-
+const DeleteContainer = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
 `;
 
-const BookmarkButton =styled.button`
-  background-color:#fafdfb;
+const BookmarkButton = styled.button`
+  background-color: #fafdfb;
   color: #2e5c4d;
-   font-size: 20px;
-   cursor: pointer;
-   display: flex;
-   align-items: center;
-   gap: 6px;
-   border:none;
-   font-weight:bold;
-   margin-left:20px;
-  //  position: absolute;  
-  //   top: 16px;
-  //   right: 16px;
-
-
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  font-weight: bold;
+  margin-left: 20px;
 `;
-
 
 const DeleteButton = styled.button`
   background-color: #e57373;
@@ -85,12 +86,8 @@ const DeleteButton = styled.button`
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
-
-  &:hover {
-    background-color: #d32f2f;
-  }
+  &:hover { background-color: #d32f2f; }
 `;
-
 
 const UpdateButton = styled.button`
   background-color: #64b5f6;
@@ -101,12 +98,8 @@ const UpdateButton = styled.button`
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
-
-  &:hover {
-    background-color: #1976d2;
-  }
+  &:hover { background-color: #1976d2; }
 `;
-
 
 const Title = styled.h1`
   font-weight: bold;
@@ -172,10 +165,7 @@ const CommentInput = styled.input`
   border-radius: 10px;
   border: 1px solid #c3d4ce;
   font-size: 14px;
-
-  &:focus {
-    outline: 2px solid #2e5c4d;
-  }
+  &:focus { outline: 2px solid #2e5c4d; }
 `;
 
 const CommentButton = styled.button`
@@ -188,10 +178,7 @@ const CommentButton = styled.button`
   height: 45px;
   font-size: 14px;
   cursor: pointer;
-
-  &:hover {
-    background-color: #24493d;
-  }
+  &:hover { background-color: #24493d; }
 `;
 
 const CommentList = styled.div`
@@ -205,7 +192,7 @@ const CommentDetail = styled.div`
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  margin-bottom:30px;
+  margin-bottom: 30px;
 `;
 
 const CommentImg = styled.img`
@@ -236,10 +223,7 @@ const CommentActions = styled.div`
   font-size: 12px;
   color: #555;
   cursor: pointer;
-
-  svg {
-    margin-right: 5px;
-  }
+  svg { margin-right: 5px; }
 `;
 
 const ReplyContainer = styled.div`
@@ -339,24 +323,35 @@ const GhostButton = styled.button`
   color: #555;
   cursor: pointer;
   font-weight: 600;
-
-  &:hover {
-    background: #eef3f1;       /* 연한 초록 톤 배경 */
-    color: #2e5c4d;             /* 브랜드 컬러 텍스트 */
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  &:hover { background: #eef3f1; color: #2e5c4d; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
 
 const DangerButton = styled(GhostButton)`
   color: #c62828;
-  &:hover {
-    background: #fdecea;        /* 연한 레드 배경 */
-    color: #b71c1c;
-  }
+  &:hover { background: #fdecea; color: #b71c1c; }
 `;
+
+/* =========================
+   로컬 parent 매핑 저장 유틸
+========================= */
+const STORAGE_KEY = (rid) => `replyParentMap:${rid}`;
+const loadParentMap = (rid) => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY(rid));
+    if (!raw) return new Map();
+    const obj = JSON.parse(raw);
+    return new Map(Object.entries(obj).map(([k, v]) => [Number(k), Number(v)]));
+  } catch {
+    return new Map();
+  }
+};
+const saveParentMap = (rid, map) => {
+  try {
+    const obj = Object.fromEntries([...map.entries()]);
+    localStorage.setItem(STORAGE_KEY(rid), JSON.stringify(obj));
+  } catch {}
+};
 
 function RoadmapDetail() {
   const { id } = useParams();
@@ -382,9 +377,9 @@ function RoadmapDetail() {
   const [editingId, setEditingId] = useState(null);
   const [editingText, setEditingText] = useState("");
 
+  // 답글 입력(전역 상태: 어떤 댓글에 답글 쓰는지)
   const [replyTarget, setReplyTarget] = useState(null);
-const [replyText, setReplyText] = useState("");
-
+  const [replyText, setReplyText] = useState("");
 
   // busy flags
   const [loading, setLoading] = useState(false);
@@ -395,37 +390,14 @@ const [replyText, setReplyText] = useState("");
   // 카테고리 path 표시
   const [catMap, setCatMap] = useState(null);
 
-  // 댓글/대댓글 트리에서 특정 commentId를 찾아 updater로 변경
-const updateCommentInTree = (list, targetId, updater) => {
-  return list.map((c) => {
-    if (c.commentId === targetId) {
-      return updater(c);
-    }
-    if (Array.isArray(c.replies) && c.replies.length) {
-      return {
-        ...c,
-        replies: updateCommentInTree(c.replies, targetId, updater),
-      };
-    }
-    return c;
-  });
-};
+  // (중요) childId -> parentId 로컬 매핑
+  const parentMapRef = useRef(new Map());
 
-// 댓글/대댓글 트리에서 특정 commentId를 제거(삭제)할 때 사용 (선택)
-const deleteCommentInTree = (list, targetId) => {
-  return list
-    .filter((c) => c.commentId !== targetId)
-    .map((c) => ({
-      ...c,
-      replies: c.replies ? deleteCommentInTree(c.replies, targetId) : [],
-    }));
-};
-
-
+  /* ---------- 유틸: 카테고리 path ---------- */
   const buildIdToPathLabel = (cats) => {
-    const byId = new Map(cats.map(c => [String(c.categoryId), c]));
+    const byId = new Map(cats.map((c) => [String(c.categoryId), c]));
     const idToPath = new Map();
-    cats.forEach(c => {
+    cats.forEach((c) => {
       const names = [];
       let cur = c;
       while (cur) {
@@ -448,80 +420,125 @@ const deleteCommentInTree = (list, targetId) => {
     })();
   }, []);
 
-  // ===== 댓글 좋아요 토글 =====
-const handleToggleCommentLike = async (commentId, liked) => {
-  try {
-    if (liked) {
-      await removeCommentLike(commentId);
-    } else {
-      await addCommentLike(commentId);
+  /* ---------- 댓글: 항상 올바른 트리로 보정(로컬 parent 매핑 반영) ---------- */
+  function ensureCommentTree(raw) {
+    const parentMap = parentMapRef.current;
+
+    // 1) 전체 평탄화(replies 안쪽까지)
+    const flat = [];
+    const walk = (arr, inferredParentId = null) => {
+      for (const it of arr || []) {
+        const idNum = Number(it.commentId);
+        const explicitParent =
+          it.parentId !== undefined && it.parentId !== null
+            ? Number(it.parentId)
+            : null;
+        const mappedParent = parentMap.get(idNum) ?? null;
+        // 서버가 parentId를 안 주거나 루트로 섞여 내려보내는 경우를 대비:
+        const effectiveParent =
+          explicitParent ?? mappedParent ?? inferredParentId;
+
+        const node = {
+          ...it,
+          commentId: idNum,
+          parentId: effectiveParent,
+          replies: Array.isArray(it.replies) ? it.replies : [],
+        };
+        flat.push({ ...node, replies: [] });
+        walk(node.replies, node.commentId); // 중첩 응답이면 재귀 추론
+      }
+    };
+    walk(Array.isArray(raw) ? raw : [], null);
+
+    // 2) parentId 기준 재조립
+    const byId = new Map(flat.map((n) => [n.commentId, { ...n, replies: [] }]));
+    const roots = [];
+    for (const n of byId.values()) {
+      if (n.parentId && byId.has(n.parentId)) {
+        byId.get(n.parentId).replies.push(n);
+      } else {
+        roots.push(n);
+      }
     }
 
-    // 상태 갱신 (optimistic update or refetch)
-    setComments(prev =>
-      prev.map(c =>
-        c.commentId === commentId
-          ? {
-              ...c,
-              likedByMe: !liked,
-              likeCount: (c.likeCount ?? 0) + (liked ? -1 : 1),
-            }
-          : c
-      )
-    );
-  } catch (e) {
-    console.error("[댓글 좋아요 실패]", e);
-    alert("댓글 좋아요 처리에 실패했습니다.");
+    // 3) 최신순 정렬(루트/자식 각각)
+    const safeTime = (x) => (x?.createdAt ? new Date(x.createdAt).getTime() : 0);
+    const sortDesc = (arr) => {
+      arr.sort((a, b) => safeTime(b) - safeTime(a));
+      arr.forEach((x) => x.replies && sortDesc(x.replies));
+    };
+    sortDesc(roots);
+    return roots;
   }
-};
 
+  /* ---------- 댓글 트리 편집 유틸(낙관적 갱신용) ---------- */
+  const updateCommentInTree = (list, targetId, updater) =>
+    list.map((c) => {
+      if (c.commentId === targetId) return updater(c);
+      if (Array.isArray(c.replies) && c.replies.length) {
+        return { ...c, replies: updateCommentInTree(c.replies, targetId, updater) };
+      }
+      return c;
+    });
 
-  // 상세 + 좋아요/북마크 + 댓글
-  const fetchDetail = async (rid) => {
-  setLoading(true);
-  try {
-    const [rm, likeInfo, bmInfo] = await Promise.all([
-      getRoadmapDetail(rid),
-      fetchLikeStatus(rid),
-      fetchBookmarkStatus(rid),
-    ]);
-    setRoadmap(rm);
-    setSections(rm.sections || []);
-    setNickname(rm.authorNickname ?? "");
+  const deleteCommentInTree = (list, targetId) =>
+    list
+      .filter((c) => c.commentId !== targetId)
+      .map((c) => ({
+        ...c,
+        replies: c.replies ? deleteCommentInTree(c.replies, targetId) : [],
+      }));
 
-    setLikeState(!!likeInfo?.liked);
-    setLikeCount(likeInfo?.likeCount ?? rm.likeCount ?? 0);
-    setBookmark(!!bmInfo?.bookmarked);
-    setBookmarkCount(bmInfo?.bookmarkCount ?? rm.bookmarkCount ?? 0);
-
-    // 댓글은 따로 예외 처리
+  /* ---------- 댓글 로딩 ---------- */
+  const loadComments = async (rid) => {
     try {
-      const list = await listRoadmapComments(rid);
-      const sorted = (list || []).slice().sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setComments(sorted);
+      const raw = await listRoadmapComments(rid);
+      setComments(ensureCommentTree(raw));
     } catch (e) {
       const s = e?.response?.status;
       if (s === 401 || s === 403) {
         console.warn("댓글은 로그인 사용자만 조회 가능");
-        // 필요시 안내/리다이렉트
-        // alert("로그인 후 댓글을 볼 수 있어요.");
-        // navigate("/login");
       } else {
         console.error("[댓글 조회 실패]", e);
       }
     }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
+  /* ---------- 상세/좋아요/북마크/댓글 조회 ---------- */
+  const fetchDetail = async (rid) => {
+    setLoading(true);
+    try {
+      // 로컬 parentMap 먼저 로드
+      parentMapRef.current = loadParentMap(rid);
+
+      const [rm, likeInfo, bmInfo] = await Promise.all([
+        getRoadmapDetail(rid),
+        fetchLikeStatus(rid),
+        fetchBookmarkStatus(rid),
+      ]);
+
+      setRoadmap(rm);
+      setSections(rm.sections || []);
+      setNickname(rm.authorNickname ?? "");
+
+      setLikeState(!!likeInfo?.liked);
+      setLikeCount(likeInfo?.likeCount ?? rm.likeCount ?? 0);
+      setBookmark(!!bmInfo?.bookmarked);
+      setBookmarkCount(bmInfo?.bookmarkCount ?? rm.bookmarkCount ?? 0);
+
+      await loadComments(rid);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
-    fetchDetail(Number(id));
+    const rid = Number(id);
+    fetchDetail(rid);
   }, [id]);
 
-  // ===== 로드맵 삭제 =====
+  /* ---------- 로드맵 삭제 ---------- */
   const handleDeletePost = async () => {
     if (deleting) return;
     const rid = Number(id);
@@ -535,7 +552,8 @@ const handleToggleCommentLike = async (commentId, liked) => {
     } catch (e) {
       const s = e?.response?.status;
       if (s === 401) {
-        alert("로그인이 필요합니다."); navigate("/login");
+        alert("로그인이 필요합니다.");
+        navigate("/login");
       } else if (s === 403) {
         alert("삭제 권한이 없습니다.");
       } else if (s === 404) {
@@ -549,28 +567,47 @@ const handleToggleCommentLike = async (commentId, liked) => {
     }
   };
 
-  // ===== 좋아요 =====
+  /* ---------- 댓글 좋아요 ---------- */
+  const handleToggleCommentLike = async (commentId, liked) => {
+    try {
+      if (liked) await removeCommentLike(commentId);
+      else await addCommentLike(commentId);
+
+      setComments((prev) =>
+        updateCommentInTree(prev, Number(commentId), (c) => ({
+          ...c,
+          likedByMe: !liked,
+          likeCount: (c.likeCount ?? 0) + (liked ? -1 : 1),
+        }))
+      );
+    } catch (e) {
+      console.error("[댓글 좋아요 실패]", e);
+      alert("댓글 좋아요 처리에 실패했습니다.");
+    }
+  };
+
+  /* ---------- 로드맵 좋아요/북마크 ---------- */
   const handleLike = async () => {
     if (likeBusy) return;
     setLikeBusy(true);
     const rid = Number(id);
     const next = !likeState;
 
-    // 낙관적 업데이트
     setLikeState(next);
-    setLikeCount(c => Math.max(0, c + (next ? 1 : -1)));
+    setLikeCount((c) => Math.max(0, c + (next ? 1 : -1)));
 
     try {
-      if (next) await addLike(rid); else await removeLike(rid);
+      if (next) await addLike(rid);
+      else await removeLike(rid);
       const latest = await fetchLikeStatus(rid);
       setLikeState(!!latest.liked);
       setLikeCount(latest.likeCount ?? 0);
     } catch (e) {
-      // 롤백
       setLikeState(!next);
-      setLikeCount(c => Math.max(0, c + (next ? -1 : 1)));
+      setLikeCount((c) => Math.max(0, c + (next ? -1 : 1)));
       if (e?.response?.status === 401) {
-        alert("로그인이 필요합니다."); navigate("/login");
+        alert("로그인이 필요합니다.");
+        navigate("/login");
       } else {
         alert("좋아요 처리에 실패했어요. 다시 시도해 주세요.");
       }
@@ -580,7 +617,6 @@ const handleToggleCommentLike = async (commentId, liked) => {
     }
   };
 
-  // ===== 북마크 =====
   const handleBookmark = async () => {
     if (bookmarkBusy) return;
     setBookmarkBusy(true);
@@ -588,18 +624,20 @@ const handleToggleCommentLike = async (commentId, liked) => {
     const next = !bookmark;
 
     setBookmark(next);
-    setBookmarkCount(c => Math.max(0, c + (next ? 1 : -1)));
+    setBookmarkCount((c) => Math.max(0, c + (next ? 1 : -1)));
 
     try {
-      if (next) await addBookmark(rid); else await removeBookmark(rid);
+      if (next) await addBookmark(rid);
+      else await removeBookmark(rid);
       const latest = await fetchBookmarkStatus(rid);
       setBookmark(!!latest.bookmarked);
       setBookmarkCount(latest.bookmarkCount ?? 0);
     } catch (e) {
       setBookmark(!next);
-      setBookmarkCount(c => Math.max(0, c + (next ? -1 : 1)));
+      setBookmarkCount((c) => Math.max(0, c + (next ? -1 : 1)));
       if (e?.response?.status === 401) {
-        alert("로그인이 필요합니다."); navigate("/login");
+        alert("로그인이 필요합니다.");
+        navigate("/login");
       } else {
         alert("북마크 처리에 실패했어요. 다시 시도해 주세요.");
       }
@@ -608,46 +646,51 @@ const handleToggleCommentLike = async (commentId, liked) => {
       setBookmarkBusy(false);
     }
   };
-  
-const handleCreateReply = async (parentId) => {
-  const rid = Number(id);
-  const content = replyText.trim();
-  if (!content) return;
-  try {
-    const created = await createRoadmapComment(rid, content, parentId);
-    setComments(prev =>
-      prev.map(c =>
-        c.commentId === parentId
-          ? { ...c, replies: [created, ...(c.replies || [])] }
-          : c
-      )
-    );
-    setReplyText("");
-    setReplyTarget(null);
-  } catch (e) {
-    alert("대댓글 등록에 실패했어요.");
-    console.error(e);
-  }
-};
 
-  // ===== 댓글 작성 =====
+  /* ---------- 댓글/대댓글 작성 ---------- */
+  const handleCreateReply = async (parentId) => {
+    const rid = Number(id);
+    const content = replyText.trim();
+    if (!content || !parentId) return;
+
+    try {
+      const created = await createRoadmapComment(rid, content, parentId);
+      // 로컬 parent 매핑 저장 (child -> parent)
+      if (created?.commentId) {
+        parentMapRef.current.set(Number(created.commentId), Number(parentId));
+        saveParentMap(rid, parentMapRef.current);
+      }
+      setReplyText("");
+      setReplyTarget(null);
+      await loadComments(rid); // 서버 기준 재조회 + 로컬 매핑으로 보정
+    } catch (e) {
+      alert("대댓글 등록에 실패했어요.");
+      console.error(e);
+    }
+  };
+
   const handleCreateComment = async () => {
     const rid = Number(id);
     const content = newComment.trim();
     if (!content) return;
+
     try {
-      const created = await createRoadmapComment(rid, content);
-      setComments(prev => [created, ...prev]);
+      await createRoadmapComment(rid, content, null);
       setNewComment("");
+      await loadComments(rid);
     } catch (e) {
       const s = e?.response?.status;
-      if (s === 401) { alert("로그인이 필요합니다."); navigate("/login"); }
-      else { alert("댓글 등록에 실패했어요."); }
+      if (s === 401) {
+        alert("로그인이 필요합니다.");
+        navigate("/login");
+      } else {
+        alert("댓글 등록에 실패했어요.");
+      }
       console.error("[댓글 등록 실패]", e);
     }
   };
 
-  // ===== 댓글 수정 =====
+  /* ---------- 댓글 수정/삭제 ---------- */
   const startEdit = (c) => {
     setEditingId(c.commentId);
     setEditingText(c.content);
@@ -656,79 +699,147 @@ const handleCreateReply = async (parentId) => {
     setEditingId(null);
     setEditingText("");
   };
- const submitEdit = async () => {
-  const rid = Number(id);
-  const cid = editingId;
-  const content = editingText.trim();
-  if (!cid || !content) return;
 
-  // 실패 시 되돌릴 원본
-  const prev = comments;
+  const submitEdit = async () => {
+    const rid = Number(id);
+    const cid = editingId;
+    const content = editingText.trim();
+    if (!cid || !content) return;
 
-  // 1) 화면 먼저 반영(즉시 업데이트)
-  const nowIso = new Date().toISOString();
-  setComments((prevList) =>
-    updateCommentInTree(prevList, cid, (old) => ({
-      ...old,
-      content,           // 새 내용
-      updatedAt: nowIso, // "(수정됨)" 표시용
-    }))
-  );
-  setEditingId(null);
-  setEditingText("");
-
-  try {
-    // 2) 서버 반영
-    const updated = await updateRoadmapComment(rid, cid, content);
-
-    // 3) 서버가 돌려준 필드(정확한 updatedAt 등) 있으면 한 번 더 동기화
-    if (updated) {
-      setComments((prevList) =>
-        updateCommentInTree(prevList, cid, (old) => ({
-          ...old,
-          ...updated,
-        }))
-      );
+    try {
+      await updateRoadmapComment(rid, cid, content);
+      setEditingId(null);
+      setEditingText("");
+      await loadComments(rid);
+    } catch (e) {
+      const s = e?.response?.status;
+      if (s === 401) {
+        alert("로그인이 필요합니다.");
+        navigate("/login");
+      } else if (s === 403) {
+        alert("댓글 수정 권한이 없습니다.");
+      } else if (s === 404) {
+        alert("댓글이 존재하지 않습니다.");
+      } else {
+        alert("댓글 수정에 실패했어요.");
+      }
+      console.error("[댓글 수정 실패]", e);
     }
-  } catch (e) {
-    // 실패 시 롤백
-    setComments(prev);
-    const s = e?.response?.status;
-    if (s === 401) { alert("로그인이 필요합니다."); navigate("/login"); }
-    else if (s === 403) { alert("댓글 수정 권한이 없습니다."); }
-    else if (s === 404) { alert("댓글이 존재하지 않습니다."); }
-    else { alert("댓글 수정에 실패했어요."); }
-    console.error("[댓글 수정 실패]", e);
-  }
-};
+  };
 
-
-  // ===== 댓글 삭제 =====
   const handleDeleteComment = async (cid) => {
     if (!window.confirm("댓글을 삭제할까요?")) return;
     const rid = Number(id);
     try {
       await deleteRoadmapComment(rid, cid);
-      setComments(prev => prev.filter(c => c.commentId !== cid));
+      await loadComments(rid);
     } catch (e) {
       const s = e?.response?.status;
-      if (s === 401) { alert("로그인이 필요합니다."); navigate("/login"); }
-      else if (s === 403) { alert("댓글 삭제 권한이 없습니다."); }
-      else if (s === 404) { alert("이미 삭제되었거나 존재하지 않습니다."); }
-      else { alert("댓글 삭제에 실패했어요."); }
+      if (s === 401) {
+        alert("로그인이 필요합니다.");
+        navigate("/login");
+      } else if (s === 403) {
+        alert("댓글 삭제 권한이 없습니다.");
+      } else if (s === 404) {
+        alert("이미 삭제되었거나 존재하지 않습니다.");
+      } else {
+        alert("댓글 삭제에 실패했어요.");
+      }
       console.error("[댓글 삭제 실패]", e);
     }
   };
 
+  /* ---------- 재귀 렌더 ---------- */
+  const ReplyNode = ({ node: c, depth = 0 }) => {
+    const mine = Number(c.authorId) === myId;
+    const isEditing = editingId === c.commentId;
+
+    return (
+      <div style={{ marginLeft: depth * 24 }}>
+        <CommentDetail>
+          <CommentText>
+            <CommentName>
+              {c.authorNickname}
+              <span style={{ marginLeft: 8, color: "#999", fontWeight: 400 }}>
+                {new Date(c.createdAt).toLocaleString()}
+                {c.updatedAt && " (수정됨)"}
+              </span>
+            </CommentName>
+
+            {!isEditing ? (
+              <span>{c.content}</span>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <CommentInput
+                  value={editingText}
+                  onChange={(e) => setEditingText(e.target.value)}
+                  placeholder="댓글 수정..."
+                />
+                <CommentButton onClick={submitEdit}>수정</CommentButton>
+                <CommentButton onClick={cancelEdit} style={{ backgroundColor: "#aaa" }}>
+                  취소
+                </CommentButton>
+              </div>
+            )}
+
+            <Actions>
+              <GhostButton onClick={() => handleToggleCommentLike(c.commentId, c.likedByMe)}>
+                {c.likedByMe ? <FaHeart /> : <FaRegHeart />} {c.likeCount ?? 0}
+              </GhostButton>
+
+              {mine && !isEditing && (
+                <>
+                  <GhostButton onClick={() => startEdit(c)}>
+                    <FaEdit /> 수정
+                  </GhostButton>
+                  <DangerButton onClick={() => handleDeleteComment(c.commentId)}>
+                    <FaTrash /> 삭제
+                  </DangerButton>
+                </>
+              )}
+
+              <GhostButton onClick={() => setReplyTarget(c.commentId)}>답글</GhostButton>
+            </Actions>
+
+            {replyTarget === c.commentId && (
+              <ReplyContainer>
+                <CommentInput
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="답글을 입력하세요..."
+                />
+                <CommentButton onClick={() => handleCreateReply(c.commentId)}>등록</CommentButton>
+              </ReplyContainer>
+            )}
+
+            {!!c.replies?.length &&
+              c.replies.map((child) => (
+                <ReplyNode key={child.commentId} node={child} depth={depth + 1} />
+              ))}
+          </CommentText>
+        </CommentDetail>
+      </div>
+    );
+  };
+
+  const Replies = ({ nodes }) => (
+    <>
+      {nodes.map((c) => (
+        <ReplyNode key={c.commentId} node={c} depth={0} />
+      ))}
+    </>
+  );
+
+  /* ---------- 렌더 ---------- */
   return (
     <>
       <TopHeader
         nickname={nickname}
-        onLogoClick={() =>
+        onLogoClick={() => {
           navigate("/", {
             state: { updatedId: Number(id), likeCount, bookmarkCount },
-          })
-        }
+          });
+        }}
       />
       <Container>
         <ContainerButton>
@@ -750,22 +861,20 @@ const handleCreateReply = async (parentId) => {
         {roadmap && (
           <AllContainer>
             <Title>{roadmap.title}</Title>
-            <CategoryPath>{catMap?.get(String(roadmap.category)) ?? String(roadmap.category)}</CategoryPath>
+            <CategoryPath>
+              {catMap?.get(String(roadmap.category)) ?? String(roadmap.category)}
+            </CategoryPath>
             <Description>{roadmap.description}</Description>
             <Author>작성자: {roadmap.authorNickname}</Author>
             <p>좋아요: {likeCount}, 북마크: {bookmarkCount}</p>
           </AllContainer>
         )}
 
-        <LikeContainer
-          onClick={likeBusy ? undefined : handleLike}
-          style={{ opacity: likeBusy ? 0.6 : 1 }}
-        >
+        <LikeContainer onClick={likeBusy ? undefined : handleLike} style={{ opacity: likeBusy ? 0.6 : 1 }}>
           {likeState ? <FaHeart /> : <FaRegHeart />}
           <span style={{ marginLeft: 8 }}>{likeBusy ? "처리중..." : "좋아요"}</span>
         </LikeContainer>
 
-        {/* 레벨/스텝 */}
         <LevelsContainer>
           {sections.map((sec) => (
             <LevelBlock key={sec.sectionId}>
@@ -797,93 +906,9 @@ const handleCreateReply = async (parentId) => {
             <CommentButton onClick={handleCreateComment}>등록</CommentButton>
           </CommentContainer>
 
-       <CommentList>
-  {comments.map((c) => {
-    // ⚠️ 여기서 변수 선언 가능 (중괄호 블록)
-    const mine = Number(c.authorId) === Number(localStorage.getItem("userId"));
-    const isEditing = editingId === c.commentId;
-
-    // 반드시 return 으로 JSX 반환
-    return (
-      <CommentDetail key={c.commentId}>
-        <CommentText>
-          <CommentName>
-            {c.authorNickname}
-            <span style={{ marginLeft: 8, color: "#999", fontWeight: 400 }}>
-              {new Date(c.createdAt).toLocaleString()}
-              {c.updatedAt && " (수정됨)"}
-            </span>
-          </CommentName>
-
-          {!isEditing ? (
-            <span>{c.content}</span>
-          ) : (
-            <div style={{ display: "flex", gap: 8 }}>
-              <CommentInput
-                value={editingText}
-                onChange={(e) => setEditingText(e.target.value)}
-                placeholder="댓글 수정..."
-              />
-              <CommentButton onClick={submitEdit}>수정</CommentButton>
-              <CommentButton onClick={cancelEdit} style={{ backgroundColor: "#aaa" }}>
-                취소
-              </CommentButton>
-            </div>
-          )}
-
-         <Actions>
-  {/* 댓글 좋아요 버튼 */}
-  <GhostButton
-    onClick={() => handleToggleCommentLike(c.commentId, c.likedByMe)}
-  >
-    {c.likedByMe ? <FaHeart color="red" /> : <FaRegHeart />} {c.likeCount ?? 0}
-  </GhostButton>
-
-  {mine && !isEditing && (
-    <>
-      <GhostButton onClick={() => startEdit(c)}>
-        <FaEdit /> 수정
-      </GhostButton>
-      <DangerButton onClick={() => handleDeleteComment(c.commentId)}>
-        <FaTrash /> 삭제
-      </DangerButton>
-    </>
-  )}
-
-  {/* 대댓글 버튼 */}
-  <GhostButton onClick={() => setReplyTarget(c.commentId)}>답글</GhostButton>
-</Actions>
-
-
-          {/* 대댓글 입력창 */}
-          {replyTarget === c.commentId && (
-            <ReplyContainer>
-              <CommentInput
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder="답글을 입력하세요..."
-              />
-              <CommentButton onClick={() => handleCreateReply(c.commentId)}>
-                등록
-              </CommentButton>
-            </ReplyContainer>
-          )}
-
-          {/* 대댓글 목록 */}
-          {!!c.replies?.length &&
-            c.replies.map((r) => (
-              <ReplyItem key={r.commentId}>
-                <ReplyName>{r.authorNickname}</ReplyName>
-                <ReplyText>{r.content}</ReplyText>
-              </ReplyItem>
-            ))}
-        </CommentText>
-      </CommentDetail>
-    );
-  })}
-</CommentList>
-
-
+          <CommentList>
+            <Replies nodes={comments} />
+          </CommentList>
         </BottomContainer>
       </Container>
     </>
