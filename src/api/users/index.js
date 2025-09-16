@@ -5,8 +5,10 @@ import api from "../client";
 
 /** 닉네임으로 유저 조회 (200=존재/중복, 404=없음/사용가능) */
 export async function getUserByNickname(nickname) {
-  const res = await api.get(`/user/${encodeURIComponent(nickname)}`);
-  return res.data;
+  const nick = (nickname ?? "").trim();
+  if (!nick) throw new Error("닉네임이 비어있습니다.");
+  const res = await api.get(`/user/nick/${encodeURIComponent(nick)}`);
+  return res.data; // { userId, userLoginId, email, nickname, age }
 }
 
 /** 카테고리 전체 조회 */
@@ -20,9 +22,8 @@ export async function getUserById(userId) {
   return res.data;  // { userId, userLoginId, email, nickname, age }
 }
 export async function updateUser(id, body) {
-  // body: { userLoginId, email, nickname, password?, age? }
-  const { data } = await api.patch(`/user/${id}`, body);
-  return data;
+  const res = await api.patch(`/user/id/${id}`, body);
+  return res.data;
 }
 
 // fetchCategories()

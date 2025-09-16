@@ -10,14 +10,15 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://43.202.225.206:8080",
+        target: "http://54.180.92.141:8080/",
         changeOrigin: true,
         secure: false,
    
     cookieDomainRewrite: "localhost", // ★ 쿠키 도메인을 localhost로 재작성
     cookiePathRewrite: "/",           // ★ 쿠키 path도 /
           rewrite: (p) => {
-      const keep = /^\/api\/(login|csrf|search)(\/|$)/; // 유지
+      const keep = /^\/api\/(login|csrf|search)(?=\/|$|\?)/;
+
       const strip = /^\/api\/(user|sections|steps|step-contents|roadmaps|notifications|categories|comments)(\/|$)/; // 제거
       if (keep.test(p)) return p;
  if (strip.test(p)) return p.replace(/^\/api(?=\/|\?|$)/, "");      

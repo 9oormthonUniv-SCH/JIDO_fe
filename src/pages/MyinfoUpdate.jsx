@@ -16,32 +16,48 @@ const TotalContainer = styled.div`
 
 const TopInfo = styled.div`
   display: flex;
-  gap: 15px;
-  margin-top: 40px;
-  margin-bottom: 30px;
-  justify-content: flex-start;
+  justify-content: center;     /* 중앙 정렬 */
+  align-items: center;
+  width: 100%;
+  margin: 32px 0 24px;
 `;
 
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  align-items: center;          /* 닉네임 인풋 중앙 정렬 */
+  width: 100%;
 `;
 
 const UserName = styled.input`
-  font-weight: bold;
-  color: black;
-  font-size: 28px;
-  border: none;
-  border-bottom: 1px solid #ccc;
-  background: transparent;
-  outline: none;
-  width: 200px;
+  width: 550px;
+  height: 44px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #c3d4ce;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2e5c4d;
+  box-shadow: 0 2px 8px rgba(46, 92, 77, 0.06);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &::placeholder {
+    color: #a2b5ae;
+  }
+  &:hover {
+    box-shadow: 0 4px 14px rgba(46, 92, 77, 0.08);
+  }
+  &:focus {
+    outline: none;
+    border-color: #2e5c4d;
+    box-shadow: 0 0 0 3px rgba(46, 92, 77, 0.15);
+  }
 `;
 
 const ChangeContainer = styled.div`
   display: flex;
-  width: 500px;
+  width: 600px;                 /* 550px 인풋이 안정적으로 들어가도록 여유폭 확보 */
   gap: 20px;
 `;
 
@@ -50,25 +66,41 @@ const LoginContainer = styled.div`
   flex-direction: column;
   gap: 14px;
   flex: 1;
-  align-items: center;
+  align-items: center;          /* 인풋 중앙 정렬 */
 `;
 
 const Label = styled.label`
-  font-weight: bold;
-  font-size: 20px;
-  color: black;
+  display: block;
+  width: 550px;
+  margin: 4px auto 8px;
+  font-weight: 700;
+  font-size: 16px;
+  color: #2b2b2b;
 `;
 
 const Input = styled.input`
-  background-color: white;
-  font-size: 16px;
-  border: 1px solid #c3d4ce;
-  border-radius: 8px;
-  height: 30px;
-  padding: 5px;
-  flex: 1;
-  display: block;
   width: 550px;
+  height: 44px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #c3d4ce;
+  border-radius: 10px;
+  font-size: 16px;
+  color: #2b2b2b;
+  box-shadow: 0 2px 8px rgba(46, 92, 77, 0.06);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &::placeholder {
+    color: #a2b5ae;
+  }
+  &:hover {
+    box-shadow: 0 4px 14px rgba(46, 92, 77, 0.08);
+  }
+  &:focus {
+    outline: none;
+    border-color: #2e5c4d;
+    box-shadow: 0 0 0 3px rgba(46, 92, 77, 0.15);
+  }
 `;
 
 const CompleteButton = styled.button`
@@ -77,16 +109,25 @@ const CompleteButton = styled.button`
   background: #2e5c4d;
   color: white;
   border: none;
-  border-radius: 20px;
-  padding: 10px 40px;
+  border-radius: 12px;
+  padding: 12px 24px;
   cursor: pointer;
-  font-weight: bold;
-  width: 250px;
+  font-weight: 700;
+  width: 220px;
+  box-shadow: 0 6px 16px rgba(46, 92, 77, 0.18);
+  transition: transform 0.08s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 
   &:hover {
     background-color: #24493d;
+    box-shadow: 0 8px 20px rgba(46, 92, 77, 0.22);
+    transform: translateY(-1px);
+  }
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(46, 92, 77, 0.18);
   }
 `;
+
 
 function MyinfoUpdate() {
   const navigate = useNavigate();

@@ -7,114 +7,149 @@ import { logout } from "../api/auth";
 import { getUserById } from "../api/users";
 
 const TotalContainer = styled.div`
+  --brand: #2e5c4d;
+  --ink: #0f172a;
+  --muted: #667085;
+
   display: flex;
   flex-direction: column;
-  background-color: #fafdfb;
-  margin-top: 150px;
-  padding: 20px;
   align-items: center;
+
+  background-color: #fafdfb;
+  margin: 120px auto 80px;
+  padding: 24px;
+
+  /* 화면 가운데 카드 레이아웃 */
+  max-width: 840px;
 `;
 
 const TopInfo = styled.div`
-  display: flex;
-  gap: 15px;
-  margin-top: 40px;
-  margin-bottom: 30px;
-  justify-content: flex-start;
-`;
+  width: 100%;
+  max-width: 640px;
 
-const Container = styled.div`
   display: flex;
   flex-direction: column;
+  gap: 10px;
+
+  margin-top: 32px;
+  margin-bottom: 24px;
   justify-content: center;
 `;
 
-const UserName = styled.p`
-  font-weight: bold;
-  color: black;
-  font-size: 28px;
-  margin: 0;
-`;
-
-const SignupDate = styled.p`
-  font-size: 15px;
-`;
-
-const ChangeContainer = styled.div`
+const Container = styled.div`
+  width: 100%;
   display: flex;
-  width: 500px;
-  gap: 20px;
+  flex-direction: column;
+  align-items: stretch;
+`;
+
+/* 공용 필드 박스 스타일 */
+const BaseField = styled.div`
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 16px;
+  border: 1px solid rgba(16, 24, 40, 0.14);
+  border-radius: 12px;
+  padding: 12px 14px;
+  width: 100%;
+  box-shadow:
+    0 1px 1px rgba(16,24,40,0.04),
+    0 8px 24px rgba(46,92,77,0.08);
+`;
+
+/* 닉네임도 박스 형태로 */
+const UserName = styled(BaseField)`
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.2px;
+`;
+
+/* 가입일은 보조 텍스트 */
+const SignupDate = styled.p`
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+`;
+
+/* 아래 입력 정보 래퍼 */
+const ChangeContainer = styled.div`
+  width: 100%;
+  max-width: 640px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
 `;
 
 const LoginContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   flex: 1;
-  align-items: center;
+  align-items: stretch;
 `;
 
+/* 라벨 */
 const Label = styled.label`
-  font-weight: bold;
-  font-size: 20px;
-  color: black;
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--ink);
+  letter-spacing: -0.1px;
 `;
 
-const Input = styled.div`
-  background-color: white;
-  font-size: 16px;
-  border: 1px solid #c3d4ce;
-  border-radius: 8px;
-  height: 30px;
-  padding: 5px;
-  width: 550px;
+/* 이메일/아이디 박스 */
+const Input = styled(BaseField)`
+  /* 그대로 사용 */
 `;
 
+/* 액션 버튼 */
 const EditMyInfoB = styled.button`
-  margin-top: 20px;
+  margin-top: 24px;
   font-size: 16px;
-  background: #2e5c4d;
+  background: var(--brand);
   color: white;
   border: none;
-  border-radius: 20px;
-  padding: 10px 40px;
+  border-radius: 12px;
+  padding: 12px 20px;
   cursor: pointer;
-  font-weight: bold;
-  width: 250px;
+  font-weight: 700;
+  min-width: 220px;
 
-  &:hover {
-    background-color: #24493d;
-  }
+  &:hover { background-color: #24493d; }
 `;
 
 const LogoutButton = styled.button`
-  color: #2e5c4d;
+  color: var(--brand);
   border: none;
   background: none;
   font-size: 14px;
-  &:hover {
-    text-decoration: underline;
-  }
-  display: flex;
-  margin-top: 20px;
+  margin-top: 14px;
+  cursor: pointer;
+
+  &:hover { text-decoration: underline; }
 `;
 
+/* 관심 카테고리 */
 const CategoryList = styled.div`
+  width: 100%;
+  max-width: 640px;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  max-width: 500px;
-  justify-content: center;
+  justify-content: flex-start;
 `;
 
 const CategoryItem = styled.div`
-  background: #e3e3e3;
-  border-radius: 20px;
-  padding: 5px 10px;
-  font-size: 14px;
-  font-weight: bold;
+  background: linear-gradient(180deg, #f4f8f6, #ffffff);
+  border: 1px solid rgba(46, 92, 77, 0.22);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2a2a;
+  box-shadow: 0 1px 1px rgba(16,24,40,0.04);
 `;
-
 function MyInfo() {
   const [nickname, setNickname] = useState("");
   const [signupDate, setSignupDate] = useState("");
@@ -156,8 +191,8 @@ function MyInfo() {
       <TopHeader nickname={nickname} />
       <TotalContainer>
         <TopInfo>
-          {/* 🔻 사진 제거: 이름/가입일만 표시 */}
           <Container>
+            <Label>닉네임</Label>
             <UserName>{nickname || userLoginId || "사용자"}</UserName>
             {signupDate && <SignupDate>가입일: {signupDate}</SignupDate>}
           </Container>

@@ -152,105 +152,120 @@ const LikeContainer = styled.div`
   color: #2e5c4d;
 `;
 
+/* 댓글 입력창 */
 const CommentContainer = styled.div`
   display: flex;
   gap: 10px;
-  margin-bottom: 20px;
+  margin: 20px 0;
 `;
 
 const CommentInput = styled.input`
   flex: 1;
-  height: 45px;
-  padding: 0 10px;
-  border-radius: 10px;
-  border: 1px solid #c3d4ce;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1.5px solid #e0e6e3;
   font-size: 14px;
-  &:focus { outline: 2px solid #2e5c4d; }
+  transition: border-color 0.2s, box-shadow 0.2s;
+  &:focus {
+    border-color: #2e5c4d;
+    box-shadow: 0 0 0 3px rgba(46, 92, 77, 0.15);
+    outline: none;
+  }
 `;
 
 const CommentButton = styled.button`
-  border-radius: 10px;
+  border-radius: 8px;
   background-color: #2e5c4d;
   color: white;
-  font-weight: bold;
+  font-weight: 600;
   border: none;
-  width: 80px;
-  height: 45px;
+  padding: 0 14px;
+  height: 42px;
   font-size: 14px;
   cursor: pointer;
+  transition: background 0.2s;
   &:hover { background-color: #24493d; }
 `;
 
+/* 댓글 리스트 */
 const CommentList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 18px;
+  margin-top: 10px;
 `;
 
+/* 댓글 아이템 */
 const CommentDetail = styled.div`
-  font-size: 14px;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: flex-start;
-  margin-bottom: 30px;
 `;
 
 const CommentImg = styled.img`
-  width: 35px;
-  height: 35px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid #c3d4ce;
+  border: 1px solid #ddd;
 `;
 
+/* 댓글 본문 */
 const CommentText = styled.div`
+  flex: 1;
+  background: #fff;
+  border: 1px solid #eaeaea;
+  border-radius: 10px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  width: 100%;
+  gap: 6px;
 `;
 
 const CommentName = styled.span`
-  font-weight: bold;
+  font-weight: 600;
   font-size: 13px;
   color: #2e5c4d;
-  margin-bottom: 5px;
 `;
 
-const CommentActions = styled.div`
-  display: flex;
-  gap: 10px;
-  margin-top: 5px;
-  font-size: 12px;
-  color: #555;
-  cursor: pointer;
-  svg { margin-right: 5px; }
+const CommentContent = styled.span`
+  font-size: 14px;
+  color: #333;
+  line-height: 1.4;
 `;
 
+
+
+/* 대댓글 */
 const ReplyContainer = styled.div`
   display: flex;
-  gap: 10px;
-  margin: 5px 0 10px 45px;
+  gap: 8px;
+  margin: 8px 0 0 50px;
 `;
 
 const ReplyItem = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  margin-left: 45px;
-  padding: 5px 10px;
-  background: #f5f5f5;
+  margin-left: 50px;
+  background: #f9faf9;
+  border: 1px solid #e4e7e6;
   border-radius: 8px;
+  padding: 10px 12px;
+  gap: 6px;
 `;
 
 const ReplyName = styled.span`
-  font-weight: bold;
+  font-weight: 600;
   font-size: 12px;
   color: #2e5c4d;
 `;
 
 const ReplyText = styled.span`
   font-size: 13px;
+  color: #444;
 `;
+
 
 const LevelsContainer = styled.div`
   width: 900px;
@@ -303,15 +318,28 @@ const StepBox = styled.div`
   flex-direction: column;
   gap: 10px;
 `;
-
+/* 액션 버튼 */
 const Actions = styled.div`
   display: flex;
-  gap: 8px;
-  margin-top: 5px;
+  gap: 10px;
+  margin-top: 4px;
   font-size: 12px;
-  align-items: center;
+  color: #666;
+  button {
+    all: unset;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: background 0.15s;
+    &:hover {
+      background: #f0f3f2;
+      color: #2e5c4d;
+    }
+  }
 `;
-
 const GhostButton = styled.button`
   display: inline-flex;
   align-items: center;
@@ -378,9 +406,12 @@ function RoadmapDetail() {
   const [editingText, setEditingText] = useState("");
 
   // 답글 입력(전역 상태: 어떤 댓글에 답글 쓰는지)
-  const [replyTarget, setReplyTarget] = useState(null);
-  const [replyText, setReplyText] = useState("");
+  const [replyTexts, setReplyTexts] = useState({});
+const [replyTarget, setReplyTarget] = useState(null);
 
+const handleChangeReply = (cid, value) => {
+  setReplyTexts((prev) => ({ ...prev, [cid]: value }));
+};
   // busy flags
   const [loading, setLoading] = useState(false);
   const [likeBusy, setLikeBusy] = useState(false);
@@ -649,25 +680,24 @@ function RoadmapDetail() {
 
   /* ---------- 댓글/대댓글 작성 ---------- */
   const handleCreateReply = async (parentId) => {
-    const rid = Number(id);
-    const content = replyText.trim();
-    if (!content || !parentId) return;
+  const rid = Number(id);
+  const content = (replyTexts[parentId] || "").trim();
+  if (!content) return;
 
-    try {
-      const created = await createRoadmapComment(rid, content, parentId);
-      // 로컬 parent 매핑 저장 (child -> parent)
-      if (created?.commentId) {
-        parentMapRef.current.set(Number(created.commentId), Number(parentId));
-        saveParentMap(rid, parentMapRef.current);
-      }
-      setReplyText("");
-      setReplyTarget(null);
-      await loadComments(rid); // 서버 기준 재조회 + 로컬 매핑으로 보정
-    } catch (e) {
-      alert("대댓글 등록에 실패했어요.");
-      console.error(e);
+  try {
+    const created = await createRoadmapComment(rid, content, parentId);
+    if (created?.commentId) {
+      parentMapRef.current.set(Number(created.commentId), Number(parentId));
+      saveParentMap(rid, parentMapRef.current);
     }
-  };
+    setReplyTexts((prev) => ({ ...prev, [parentId]: "" })); // 입력창만 초기화
+    setReplyTarget(null);
+    await loadComments(rid);
+  } catch (e) {
+    alert("대댓글 등록에 실패했어요.");
+    console.error(e);
+  }
+};
 
   const handleCreateComment = async () => {
     const rid = Number(id);
@@ -754,6 +784,15 @@ function RoadmapDetail() {
     const mine = Number(c.authorId) === myId;
     const isEditing = editingId === c.commentId;
 
+      // ✅ 포커스 유지 ref
+  const replyInputRef = useRef(null);
+
+  useEffect(() => {
+    if (replyTarget === c.commentId && replyInputRef.current) {
+      replyInputRef.current.focus();
+    }
+  }, [replyTarget, replyTexts[c.commentId]]);
+
     return (
       <div style={{ marginLeft: depth * 24 }}>
         <CommentDetail>
@@ -801,16 +840,17 @@ function RoadmapDetail() {
               <GhostButton onClick={() => setReplyTarget(c.commentId)}>답글</GhostButton>
             </Actions>
 
-            {replyTarget === c.commentId && (
-              <ReplyContainer>
-                <CommentInput
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="답글을 입력하세요..."
-                />
-                <CommentButton onClick={() => handleCreateReply(c.commentId)}>등록</CommentButton>
-              </ReplyContainer>
-            )}
+       {replyTarget === c.commentId && (
+  <ReplyContainer>
+    <CommentInput
+       ref={replyInputRef}
+      value={replyTexts[c.commentId] || ""}
+      onChange={(e) => handleChangeReply(c.commentId, e.target.value)}
+      placeholder="답글을 입력하세요..."
+    />
+    <CommentButton onClick={() => handleCreateReply(c.commentId)}>등록</CommentButton>
+  </ReplyContainer>
+)}
 
             {!!c.replies?.length &&
               c.replies.map((child) => (

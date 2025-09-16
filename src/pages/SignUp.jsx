@@ -77,7 +77,7 @@ const NicknameInput=styled.input`
   flex:1;
 `;
 //중복확인버튼
-const CheckButton=styled.div`
+const CheckButton=styled.button`
    border-radius:8px;
   border:1px solid #c3d4ce;
   margin-bottom: 20px;
@@ -127,44 +127,61 @@ const Button = styled.button`
 function SignUp() {
   const navigate = useNavigate();
 
-  const[nickname,setNickname]=useState("");
+  const [nickname, setNickname] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [email, setEmail] = useState("");
   const [userLoginId, setUserLoginId] = useState("");
   const [password, setPassword] = useState("");
-  
 
-    // 생년월일 → 나이(만) 대략 계산
+  // 닉네임 체크 상태
+  const [nickStatus, setNickStatus] = useState("idle"); // idle|checking|available|taken|error
+  const [nickMsg, setNickMsg] = useState("");
+
   const toAge = (yyyy_mm_dd) => {
     if (!yyyy_mm_dd) return 20;
-    const [y,m,d] = yyyy_mm_dd.split("-").map(Number);
+    const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
     const today = new Date();
     let age = today.getFullYear() - y;
-    const md = (today.getMonth()+1)*100 + today.getDate();
-    if (md < m*100 + d) age -= 1;
+    const md = (today.getMonth() + 1) * 100 + today.getDate();
+    if (md < m * 100 + d) age -= 1;
     return Math.max(age, 0);
   };
 
-const checkNickname = async () => {
-  if (!nickname.trim()) return alert("닉네임을 입력하세요.");
-  
-  try {
-    await getUserByNickname(nickname); // 200이면 존재한다고 가정
-    alert("이미 사용 중인 닉네임입니다.");
-  } catch (err) {
-    if (err?.response?.status === 404) {
-      alert("사용 가능한 닉네임입니다.");
-    } else {
-      alert("닉네임 확인 중 오류가 발생했습니다.");
-      console.error(err);
-    }
-  }
-};
+  const checkNickname = async () => {
+    const nick = nickname.trim();
+    if (!nick) return alert("닉네임을 입력하세요.");
 
-    const goNext = () => {
-     if (!nickname || !email || !userLoginId || !password) {
+    try {
+      setNickStatus("checking");
+      await getUserByNickname(nick); // 200이면 '존재'
+      setNickStatus("taken");
+      setNickMsg("이미 사용 중인 닉네임입니다.");
+      alert("이미 사용 중인 닉네임입니다.");
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 404) {
+        setNickStatus("available");
+        setNickMsg("사용 가능한 닉네임입니다.");
+        alert("사용 가능한 닉네임입니다.");
+      } else {
+        setNickStatus("error");
+        setNickMsg("닉네임 확인 중 오류가 발생했습니다.");
+        console.error(err);
+        alert("닉네임 확인 중 오류가 발생했습니다.");
+      }
+    }
+  };
+
+  const goNext = () => {
+    if (!nickname || !email || !userLoginId || !password) {
       return alert("필수 항목(닉네임/이메일/아이디/비밀번호)을 입력하세요.");
     }
+
+    // (선택) 실제 서비스에서는 중복확인 통과했는지 확인하는 게 안전
+    if (nickStatus !== "available") {
+      return alert("닉네임 중복확인을 완료해 주세요.");
+    }
+
     localStorage.setItem("nickname", nickname);
     localStorage.setItem("email", email);
     localStorage.setItem("userLoginId", userLoginId);
@@ -177,42 +194,51 @@ const checkNickname = async () => {
     navigate("/signup2");
   };
 
-
   return (
     <Container>
-
-        <BackButton onClick={() => navigate("")}>
-          <FaArrowLeft />
-        </BackButton>
+      <BackButton onClick={() => navigate("/")}>
+        <FaArrowLeft />
+      </BackButton>
 
       <Logo onClick={() => navigate("/")}>JIDO</Logo>
       <Title>SIGN UP</Title>
       <LoginContainer>
         <Label>닉네임</Label>
         <NicknameContainer>
-        <NicknameInput placeholder="닉네임을 입력하세요" value={nickname} onChange={(e) => setNickname(e.target.value)} />
-       <CheckButton onClick={checkNickname} >중복 확인</CheckButton>
-       </NicknameContainer>
-
+          <NicknameInput
+            placeholder="닉네임을 입력하세요"
+            value={nickname}
+            onChange={(e) => {
+              setNickname(e.target.value);
+              // 닉네임이 바뀌면 다시 확인해야 하므로 상태 초기화
+              setNickStatus("idle");
+              setNickMsg("");
+            }}
+          />
+          <CheckButton onClick={checkNickname} disabled={nickStatus === "checking"}>
+            {nickStatus === "checking" ? "확인중..." : "중복 확인"}
+          </CheckButton>
+        </NicknameContainer>
 
         <Label>생년월일</Label>
-        <Input type="date" placeholder="생년월일을 선택하세요" onChange={(e)=> setBirthDate(e.target.value)} />
+        <Input type="date" placeholder="생년월일을 선택하세요"
+               onChange={(e) => setBirthDate(e.target.value)} />
 
         <Label>이메일</Label>
-        <Input type="email" placeholder="이메일을 입력하세요" onChange={(e)=> setEmail(e.target.value)} />
+        <Input type="email" placeholder="이메일을 입력하세요"
+               onChange={(e) => setEmail(e.target.value)} />
 
         <Label>아이디</Label>
-        <Input placeholder="아이디를 입력하세요" onChange={(e)=>setUserLoginId(e.target.value)} />
+        <Input placeholder="아이디를 입력하세요"
+               onChange={(e) => setUserLoginId(e.target.value)} />
 
         <Label>비밀번호</Label>
-        <Input type="password" placeholder="비밀번호를 입력하세요" onChange={(e)=> setPassword(e.target.value)} />
-<Button
-  type="button"
-  onClick={goNext}>다음</Button>
+        <Input type="password" placeholder="비밀번호를 입력하세요"
+               onChange={(e) => setPassword(e.target.value)} />
 
+        <Button type="button" onClick={goNext}>다음</Button>
       </LoginContainer>
     </Container>
   );
 }
-
 export default SignUp;
