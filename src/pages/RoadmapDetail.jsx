@@ -55,7 +55,6 @@ const ContainerButton = styled.div`
   width: 100%;
   max-width: 900px;
   padding: 0 20px;
-  margin-top: 8px;
 `;
 
 const DeleteContainer = styled.div`
@@ -144,8 +143,6 @@ const BottomContainer = styled.div`
 `;
 
 const LikeContainer = styled.div`
-  display: flex;
-  margin-bottom: 15px;
   font-size: 18px;
   cursor: pointer;
   font-weight: bold;
@@ -156,7 +153,6 @@ const LikeContainer = styled.div`
 const CommentContainer = styled.div`
   display: flex;
   gap: 10px;
-  margin: 20px 0;
 `;
 
 const CommentInput = styled.input`
@@ -194,6 +190,7 @@ const CommentList = styled.div`
   flex-direction: column;
   gap: 18px;
   margin-top: 10px;
+  margin-bottom:30px;
 `;
 
 /* 댓글 아이템 */
@@ -269,7 +266,6 @@ const ReplyText = styled.span`
 
 const LevelsContainer = styled.div`
   width: 900px;
-  margin-top: 30px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -406,12 +402,9 @@ function RoadmapDetail() {
   const [editingText, setEditingText] = useState("");
 
   // 답글 입력(전역 상태: 어떤 댓글에 답글 쓰는지)
-  const [replyTexts, setReplyTexts] = useState({});
 const [replyTarget, setReplyTarget] = useState(null);
 
-const handleChangeReply = (cid, value) => {
-  setReplyTexts((prev) => ({ ...prev, [cid]: value }));
-};
+
   // busy flags
   const [loading, setLoading] = useState(false);
   const [likeBusy, setLikeBusy] = useState(false);
@@ -679,18 +672,15 @@ const handleChangeReply = (cid, value) => {
   };
 
   /* ---------- 댓글/대댓글 작성 ---------- */
-  const handleCreateReply = async (parentId) => {
+const handleCreateReply = async (parentId, content) => {
   const rid = Number(id);
-  const content = (replyTexts[parentId] || "").trim();
-  if (!content) return;
-
+  if (!content.trim()) return;
   try {
     const created = await createRoadmapComment(rid, content, parentId);
     if (created?.commentId) {
       parentMapRef.current.set(Number(created.commentId), Number(parentId));
       saveParentMap(rid, parentMapRef.current);
     }
-    setReplyTexts((prev) => ({ ...prev, [parentId]: "" })); // 입력창만 초기화
     setReplyTarget(null);
     await loadComments(rid);
   } catch (e) {
@@ -698,6 +688,7 @@ const handleChangeReply = (cid, value) => {
     console.error(e);
   }
 };
+
 
   const handleCreateComment = async () => {
     const rid = Number(id);
@@ -780,87 +771,122 @@ const handleChangeReply = (cid, value) => {
   };
 
   /* ---------- 재귀 렌더 ---------- */
-  const ReplyNode = ({ node: c, depth = 0 }) => {
-    const mine = Number(c.authorId) === myId;
-    const isEditing = editingId === c.commentId;
-
-      // ✅ 포커스 유지 ref
+const ReplyNode = ({ node: c, depth = 0 }) => {
+  const mine = Number(c.authorId) === myId; // 내가 쓴 댓글인지
+  const isEditing = editingId === c.commentId; // 수정 중인지 여부
   const replyInputRef = useRef(null);
+  const [localReply, setLocalReply] = useState(""); // 각 댓글의 답글 입력 상태
+  const composingRef = useRef(false);
 
   useEffect(() => {
-    if (replyTarget === c.commentId && replyInputRef.current) {
+    if (replyTarget === c.commentId && replyInputRef.current && !composingRef.current) {
       replyInputRef.current.focus();
     }
-  }, [replyTarget, replyTexts[c.commentId]]);
+  }, [replyTarget]);
 
-    return (
-      <div style={{ marginLeft: depth * 24 }}>
-        <CommentDetail>
-          <CommentText>
-            <CommentName>
-              {c.authorNickname}
-              <span style={{ marginLeft: 8, color: "#999", fontWeight: 400 }}>
-                {new Date(c.createdAt).toLocaleString()}
-                {c.updatedAt && " (수정됨)"}
-              </span>
-            </CommentName>
+  return (
+    <div style={{ marginLeft: depth * 24 }}>
+      <CommentDetail>
+        <CommentText>
+          {/* 작성자 + 날짜 */}
+          <CommentName>
+            {c.authorNickname}
+            <span style={{ marginLeft: 8, color: "#999", fontWeight: 400 }}>
+              {new Date(c.createdAt).toLocaleString()}
+              {c.updatedAt && " (수정됨)"}
+            </span>
+          </CommentName>
 
-            {!isEditing ? (
-              <span>{c.content}</span>
-            ) : (
-              <div style={{ display: "flex", gap: 8 }}>
-                <CommentInput
-                  value={editingText}
-                  onChange={(e) => setEditingText(e.target.value)}
-                  placeholder="댓글 수정..."
-                />
-                <CommentButton onClick={submitEdit}>수정</CommentButton>
-                <CommentButton onClick={cancelEdit} style={{ backgroundColor: "#aaa" }}>
-                  취소
-                </CommentButton>
-              </div>
+          {/* ✅ 수정 중인지 여부에 따라 분기 */}
+          {!isEditing ? (
+            <span>{c.content}</span>
+          ) : (
+            <div style={{ display: "flex", gap: 8 }}>
+              <CommentInput
+                value={editingText}
+                onChange={(e) => setEditingText(e.target.value)}
+                placeholder="댓글 수정..."
+              />
+              <CommentButton onClick={submitEdit}>수정</CommentButton>
+              <CommentButton
+                onClick={cancelEdit}
+                style={{ backgroundColor: "#aaa" }}
+              >
+                취소
+              </CommentButton>
+            </div>
+          )}
+
+          {/* ✅ 액션 버튼들 */}
+          <Actions>
+            {/* 본인 댓글일 때만 수정/삭제 표시 */}
+            {mine && !isEditing && (
+              <>
+                <GhostButton onClick={() => startEdit(c)}>
+                  <FaEdit /> 수정
+                </GhostButton>
+                <DangerButton onClick={() => handleDeleteComment(c.commentId)}>
+                  <FaTrash /> 삭제
+                </DangerButton>
+              </>
             )}
 
-            <Actions>
-              <GhostButton onClick={() => handleToggleCommentLike(c.commentId, c.likedByMe)}>
-                {c.likedByMe ? <FaHeart /> : <FaRegHeart />} {c.likeCount ?? 0}
-              </GhostButton>
+            {/* 답글 버튼 */}
+            <GhostButton
+              onClick={() =>
+                setReplyTarget((prev) =>
+                  prev === c.commentId ? null : c.commentId
+                )
+              }
+            >
+              답글
+            </GhostButton>
+          </Actions>
 
-              {mine && !isEditing && (
-                <>
-                  <GhostButton onClick={() => startEdit(c)}>
-                    <FaEdit /> 수정
-                  </GhostButton>
-                  <DangerButton onClick={() => handleDeleteComment(c.commentId)}>
-                    <FaTrash /> 삭제
-                  </DangerButton>
-                </>
-              )}
+          {/* ✅ 대댓글 입력창 */}
+          <ReplyContainer
+            style={{
+              display: replyTarget === c.commentId ? "flex" : "none",
+            }}
+          >
+            <CommentInput
+              ref={replyInputRef}
+              value={localReply}
+              onChange={(e) => setLocalReply(e.target.value)}
+              placeholder="답글을 입력하세요..."
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleCreateReply(c.commentId, localReply);
+                  setLocalReply("");
+                }
+              }}
+            />
+            <CommentButton
+              onClick={() => {
+                handleCreateReply(c.commentId, localReply);
+                setLocalReply("");
+              }}
+            >
+              등록
+            </CommentButton>
+          </ReplyContainer>
 
-              <GhostButton onClick={() => setReplyTarget(c.commentId)}>답글</GhostButton>
-            </Actions>
+          {/* ✅ 재귀적으로 하위 대댓글 렌더링 */}
+          {!!c.replies?.length &&
+            c.replies.map((child) => (
+              <ReplyNode key={child.commentId} node={child} depth={depth + 1} />
+            ))}
+        </CommentText>
+      </CommentDetail>
+    </div>
+  );
+};
 
-       {replyTarget === c.commentId && (
-  <ReplyContainer>
-    <CommentInput
-       ref={replyInputRef}
-      value={replyTexts[c.commentId] || ""}
-      onChange={(e) => handleChangeReply(c.commentId, e.target.value)}
-      placeholder="답글을 입력하세요..."
-    />
-    <CommentButton onClick={() => handleCreateReply(c.commentId)}>등록</CommentButton>
-  </ReplyContainer>
-)}
 
-            {!!c.replies?.length &&
-              c.replies.map((child) => (
-                <ReplyNode key={child.commentId} node={child} depth={depth + 1} />
-              ))}
-          </CommentText>
-        </CommentDetail>
-      </div>
-    );
-  };
+
+
 
   const Replies = ({ nodes }) => (
     <>
@@ -945,14 +971,21 @@ const handleChangeReply = (cid, value) => {
 
         {/* 댓글 */}
         <BottomContainer>
-          <CommentContainer>
-            <CommentInput
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="댓글을 입력하세요..."
-            />
-            <CommentButton onClick={handleCreateComment}>등록</CommentButton>
-          </CommentContainer>
+         <CommentContainer>
+  <CommentInput
+    value={newComment}
+    onChange={(e) => setNewComment(e.target.value)}
+    placeholder="댓글을 입력하세요..."
+    onKeyDown={(e) => {
+      if (e.key === "Enter") {
+        e.preventDefault(); // 줄바꿈 방지
+        handleCreateComment();
+      }
+    }}
+  />
+  <CommentButton onClick={handleCreateComment}>등록</CommentButton>
+</CommentContainer>
+
 
           <CommentList>
             <Replies nodes={comments} />
