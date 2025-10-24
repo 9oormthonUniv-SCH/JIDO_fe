@@ -898,7 +898,7 @@ const handleChangeReply = (cid, value) => {
           </BookmarkButton>
         </ContainerButton>
 
-        {roadmap && (
+    {roadmap && (
           <AllContainer>
             <Title>{roadmap.title}</Title>
             <CategoryPath>
@@ -907,8 +907,16 @@ const handleChangeReply = (cid, value) => {
             <Description>{roadmap.description}</Description>
             <Author>작성자: {roadmap.authorNickname}</Author>
             <p>좋아요: {likeCount}, 북마크: {bookmarkCount}</p>
+
+            {/* 비공개 로드맵 안내 문구 */}
+            {!roadmap.isPublic && (
+              <p style={{ color: 'red', fontWeight: 'bold' }}>
+                이 로드맵은 비공개 상태로, 작성자만 확인할 수 있습니다.
+              </p>
+            )}
           </AllContainer>
         )}
+
 
         <LikeContainer onClick={likeBusy ? undefined : handleLike} style={{ opacity: likeBusy ? 0.6 : 1 }}>
           {likeState ? <FaHeart /> : <FaRegHeart />}

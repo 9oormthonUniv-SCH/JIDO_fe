@@ -17,6 +17,9 @@ export async function fetchCategories() {
   return res.data; // [{ categoryId, name, depth, parentCategoryId }, ...]
 }
 
+
+
+
 export async function getUserById(userId) {
   const res = await api.get(`/user/${userId}`);
   return res.data;  // { userId, userLoginId, email, nickname, age }

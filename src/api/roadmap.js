@@ -63,9 +63,6 @@ export async function createStepContent(stepId, content, finished = false) {
 /* =========================
  * 조회
  * ========================= */
-export async function listRoadmaps() {
-  return (await api.get("/roadmaps")).data;
-}
 
 export async function getRoadmap(roadmapId) {
   return (await api.get(`/roadmaps/${Number(roadmapId)}`)).data;
@@ -174,3 +171,14 @@ export async function deleteSection(sectionId) {
 export async function deleteRoadmap(roadmapId) {
   return api.delete(`/roadmaps/${Number(roadmapId)}`);
 }
+
+
+export async function listRoadmaps(categoryId) {
+  const url = categoryId
+    ? `/roadmaps?category=${encodeURIComponent(categoryId)}`
+    : "/roadmaps";
+  console.log("[REQ] GET", url);
+  const res = await api.get(url);
+  return res.data;
+}
+

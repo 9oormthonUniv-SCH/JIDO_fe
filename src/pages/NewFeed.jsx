@@ -1,11 +1,11 @@
-import  { useEffect, useState } from "react";
+import  { useState } from "react";
 import styled from "styled-components";
 import Logo from "../components/Logo";
 import { useNavigate } from "react-router-dom";
 import { FaTrash } from "react-icons/fa";
 import categories from "../data/categories";  
 import { createRoadmap, createSection, createStep, createStepContent, listCategories } from "../api/roadmap.js";
-
+import { FaArrowLeft } from "react-icons/fa";
 
 const AllContainer = styled.div`
   display:flex;
@@ -280,6 +280,18 @@ const Knob = styled.div`
   transition: left 0.3s;
 `;
 
+const BackButton = styled.div`
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  cursor: pointer;
+  color: #2e5c4d;
+  font-size: 22px;
+  &:hover {
+    color: #24493d;
+  }
+`;
+
 
 function NewFeed() {
   const navigate = useNavigate();
@@ -469,6 +481,9 @@ const saveRoadmap = async () => {
 
   return (
     <AllContainer>
+        <BackButton onClick={() => navigate("/")}>
+        <FaArrowLeft />
+      </BackButton>
       <Logo />
 
       <InputSection>

@@ -1,7 +1,7 @@
 // src/pages/Login.jsx
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState,useEffect} from "react";
 import { login } from "../api/auth";
 import { FaArrowLeft } from "react-icons/fa"; 
 
@@ -87,54 +87,76 @@ const SignupLink = styled.p`
   &:hover{text-decoration:underline;}
 `;
 
+
+const ErrorBox = styled.div`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fdecea;
+  color: #c62828;
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translate(-50%, -45%); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
+  }
+`;
 function Login() {
   const navigate = useNavigate();
   const [userLoginId, setUserLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading]   = useState(false);
+  const [errorMessage, setErrorMessage] = useState(""); // ✅ 에러 메시지 상태
+
+  // ✅ 에러 메시지 2초 뒤 자동 제거
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => setErrorMessage(""), 2000);
+      return () => clearTimeout(timer); // cleanup
+    }
+  }, [errorMessage]);
 
   const handleSubmit = async (e) => {
-    console.log("submit");
     e.preventDefault();
-    if (!userLoginId || !password) return alert("아이디와 비밀번호를 입력하세요.");
+    if (!userLoginId || !password) {
+      setErrorMessage("아이디와 비밀번호를 입력하세요.");
+      return;
+    }
 
     try {
       setLoading(true);
+      setErrorMessage(""); // 기존 에러 초기화
 
-      // 서버 호출
-     const res = await login({ username: userLoginId, password });
-     console.log(res);
-     const userId = Number(res?.userId ?? res?.id);
-    if (!userId) throw new Error("아이디 또는 비밀번호가 올바르지 않습니다.");
+      const res = await login({ username: userLoginId, password });
+      const userId = Number(res?.userId ?? res?.id);
+      if (!userId) throw new Error("아이디 또는 비밀번호가 올바르지 않습니다.");
 
+      const nickname = res?.nickName ?? res?.nickname ?? userLoginId;
+      localStorage.setItem("userId", String(userId));
+      localStorage.setItem("nickname", nickname);
 
-    //응답값에 닉네임이없어서 아이디로 로그인
-    const nickname = res?.nickName ?? res?.nickname ?? userLoginId;
-    localStorage.setItem("userId", String(userId));   // UI용
-    localStorage.setItem("nickname", nickname);
-    console.log(nickname);
-
-
-// (선택) 헤더 같은 곳에서 즉시 반영하려면 이벤트 한번 쏘기
-window.dispatchEvent(new Event("auth-change"));
-
-navigate("/");
+      window.dispatchEvent(new Event("auth-change"));
+      navigate("/");
     } catch (err) {
       console.error(err?.response || err);
-
-      alert(err?.message || "로그인 실패. 아이디/비밀번호를 확인하세요.");
+      setErrorMessage("아이디 또는 비밀번호가 올바르지 않습니다.");
     } finally {
       setLoading(false);
     }
-    
   };
 
   return (
-       <Container>
-       <BackButton onClick={() => navigate("/")}>
-          <FaArrowLeft />
-
-        </BackButton>
+    <Container>
+      <BackButton onClick={() => navigate("/")}>
+        <FaArrowLeft />
+      </BackButton>
       <Logo onClick={() => navigate("/")}>JIDO</Logo>
       <Title>LOGIN</Title>
 
@@ -166,6 +188,9 @@ navigate("/");
         아직 회원이 아니신가요?
         <SignupLink onClick={() => navigate("/signup")}>회원가입</SignupLink>
       </SignupMentCon>
+
+      {/* ✅ 에러 메시지 박스 */}
+      {errorMessage && <ErrorBox>{errorMessage}</ErrorBox>}
     </Container>
   );
 }

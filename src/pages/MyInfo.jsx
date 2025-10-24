@@ -4,7 +4,9 @@ import styled from "styled-components";
 import TopHeader from "../components/TopHeader";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../api/auth";
-import { getUserById } from "../api/users";
+import { getUserById, fetchCategories } from "../api/users";
+import { getUserInterests } from "../api/userInterest";
+import api from "../api/client"; // ✅ DELETE 요청용 client
 
 const TotalContainer = styled.div`
   --brand: #2e5c4d;
@@ -57,14 +59,14 @@ const BaseField = styled.div`
     0 8px 24px rgba(46,92,77,0.08);
 `;
 
-/* 닉네임도 박스 형태로 */
+/* 닉네임 박스 */
 const UserName = styled(BaseField)`
   font-weight: 700;
   font-size: 18px;
   letter-spacing: -0.2px;
 `;
 
-/* 가입일은 보조 텍스트 */
+/* 가입일 */
 const SignupDate = styled.p`
   margin: 4px 0 0;
   font-size: 14px;
@@ -99,11 +101,9 @@ const Label = styled.label`
 `;
 
 /* 이메일/아이디 박스 */
-const Input = styled(BaseField)`
-  /* 그대로 사용 */
-`;
+const Input = styled(BaseField)``;
 
-/* 액션 버튼 */
+/* 버튼 */
 const EditMyInfoB = styled.button`
   margin-top: 24px;
   font-size: 16px;
@@ -149,20 +149,57 @@ const CategoryItem = styled.div`
   font-weight: 700;
   color: #1f2a2a;
   box-shadow: 0 1px 1px rgba(16,24,40,0.04);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 `;
+
+const DeleteBtn = styled.span`
+  color: #d33;
+  font-weight: 900;
+  cursor: pointer;
+  margin-left: 6px;
+  &:hover { color: #a00; }
+`;
+
+/** ✅ categoryId → "대 > 중 > 소" 문자열 변환 */
+function buildPath(categoryId, categories) {
+  const map = Object.fromEntries(categories.map(c => [c.categoryId, c]));
+  let path = [];
+  let current = map[categoryId];
+  while (current) {
+    path.unshift(current.name);
+    current = map[current.parentCategoryId];
+  }
+  return path.join(" > ");
+}
+
 function MyInfo() {
   const [nickname, setNickname] = useState("");
   const [signupDate, setSignupDate] = useState("");
   const [email, setEmail] = useState("");
   const [userLoginId, setUserLoginId] = useState("");
-  const [password, setPassword] = useState(""); // 저장된 게 있으면 표시용
   const [selectedList, setSelectedList] = useState([]);
+  const [allCategories, setAllCategories] = useState([]);
 
   const navigate = useNavigate();
 
+  // ✅ 관심사 삭제
+  const handleDeleteInterest = async (categoryId) => {
+    try {
+      await api.delete(`/user-interests/${categoryId}`);
+      const userId = Number(localStorage.getItem("userId"));
+      const interests = await getUserInterests(userId);
+      const paths = interests.map(i => buildPath(i.categoryId, allCategories));
+      setSelectedList(paths);
+    } catch (err) {
+      console.error("관심사 삭제 실패:", err?.response || err);
+      alert("관심사 삭제에 실패했습니다.");
+    }
+  };
+
   useEffect(() => {
     const userIdStr = localStorage.getItem("userId");
-
     (async () => {
       try {
         const userId = Number(userIdStr);
@@ -170,9 +207,14 @@ function MyInfo() {
         setNickname(u?.nickname ?? "");
         setEmail(u?.email ?? "");
         setUserLoginId(u?.userLoginId ?? "");
-        // 필요 시 가입일/관심카테고리도 여기서 세팅
-        // setSignupDate(u?.createdAt?.slice(0,10) ?? "");
-        // setSelectedList(u?.categories ?? []);
+        setSignupDate(u?.createdAt?.slice(0, 10) ?? "");
+
+        const categories = await fetchCategories();
+        setAllCategories(categories);
+
+        const interests = await getUserInterests(userId);
+        const paths = interests.map(i => buildPath(i.categoryId, categories));
+        setSelectedList(paths);
       } catch (err) {
         console.error("내 정보 조회 실패:", err?.response || err);
       }
@@ -180,7 +222,7 @@ function MyInfo() {
   }, []);
 
   const handleLogout = async () => {
-    try { await logout(); } catch (e) { console.warn("서버 로그아웃 실패(무시 가능):", e?.response || e); }
+    try { await logout(); } catch (e) { console.warn("서버 로그아웃 실패:", e?.response || e); }
     localStorage.clear();
     window.dispatchEvent(new Event("auth-change"));
     navigate("/");
@@ -214,7 +256,20 @@ function MyInfo() {
         <h3>관심 카테고리</h3>
         <CategoryList>
           {selectedList.length > 0 ? (
-            selectedList.map((list, idx) => <CategoryItem key={idx}>{list}</CategoryItem>)
+            selectedList.map((list, idx) => {
+              const categoryId = allCategories.find(
+                c => buildPath(c.categoryId, allCategories) === list
+              )?.categoryId;
+
+              return (
+                <CategoryItem key={idx}>
+                  {list}
+                  {categoryId && (
+                    <DeleteBtn onClick={() => handleDeleteInterest(categoryId)}>×</DeleteBtn>
+                  )}
+                </CategoryItem>
+              );
+            })
           ) : (
             <p>선택된 관심 카테고리가 없습니다.</p>
           )}
