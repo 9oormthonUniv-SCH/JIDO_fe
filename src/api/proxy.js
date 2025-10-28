@@ -1,6 +1,9 @@
 export default async function handler(req, res) {
   const targetBase = "http://54.180.92.141:8080"; // 백엔드 HTTP 서버 주소
-  const targetUrl = `${targetBase}${req.url}`; // 원래의 요청 경로 그대로 연결
+
+   // "/api/proxy" 접두사 제거
+  const targetPath = req.url.replace(/^\/api\/proxy/, "");
+  const targetUrl = `${targetBase}${targetPath}`;
 
   try {
     const response = await fetch(targetUrl, {
